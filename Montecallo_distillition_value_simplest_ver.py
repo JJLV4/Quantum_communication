@@ -798,7 +798,7 @@ def option_select(options, input_message):
     return options[int(user_input) - 1], int(user_input)
 
 
-def Distilation_caluculation(e,F_total,mode="normal"):
+def Distilation_caluculation(e,F_total,mode):
   x1 = (1 - 0.05) * (1 - 0.05) * ((1 - e))**F_total[0]
   y1 = (1 - 0.05) * (1 - 0.05) * ((1 - e))**F_total[1]
   z1 = (1 - 0.05) * (1 - 0.05) * ((1 - e))**F_total[2]
@@ -825,8 +825,110 @@ def Distilation_caluculation(e,F_total,mode="normal"):
   else:
     return Distilation_value
 
+def Distilation_caluculation_A(e,F_total,mode):
+  Distilation = []
+  F_index = []
+  
 
 
+  for i in range(len(F_total)):
+    x1 = (1 - 0.05) * (1 - 0.05) * ((1 - e))**F_total[i][0]
+    y1 = (1 - 0.05) * (1 - 0.05) * ((1 - e))**F_total[i][1]
+    z1 = (1 - 0.05) * (1 - 0.05) * ((1 - e))**F_total[i][2]
+    q1 = (1 - 0.05) * (1 - 0.05) * ((1 - e))**F_total[i][3]
+    F_index.append(q1)
+
+    # x2, y2, z2, q2 の計算
+    x2 = (1 - x1) / 3
+    y2 = (1 - y1) / 3
+    z2 = (1 - z1) / 3
+    q2 = (1 - q1) / 3
+
+    # p1, p2, p3, p4 の計算
+    p1 = (y1*x2 + x1*y2)*(q1*z2 + z1*q2) + 4*x2*y2*z2*q2
+    p2 = 2*x2*y2*(q1*z2 + z1*q2) + 2*z2*q2*(y1*x2 + x1*y2)
+    p3 = (x1*y1 + x2*y2)*(z1*q1 + z2*q2) + 4*x2*y2*z2*q2
+
+    # 元のコードの記述通り (x1*y1 + x1*y2)
+    p4 = 2*x2*y2*(z1*q1 + z2*q2) + 2*z2*q2*(x1*y1 + x1*y2)
+
+    Distilation_value = p3 / (p1 + p2 + p3 + p4)
+
+    Distilation.append(Distilation_value)
+
+  F_max = np.prod(F_index)
+
+  Total_Distilation_Fidelity = np.prod(Distilation)
+  
+
+  if mode =="brentq":
+    return Total_Distilation_Fidelity - F_max
+  else:
+    return Total_Distilation_Fidelity
+  
+def Distilation_caluculation_B(e,F_total,mode):
+  Distilation = []
+  F_array = [ [] for _ in range(len(F_total)) ]
+  F_Swaping = []
+  
+  for i in range(len(F_total)):
+       x1 = (1 - 0.05) * (1 - 0.05) * ((1 - e))**F_total[i][0]
+       y1 = (1 - 0.05) * (1 - 0.05) * ((1 - e))**F_total[i][1]
+       z1 = (1 - 0.05) * (1 - 0.05) * ((1 - e))**F_total[i][2]
+       q1 = (1 - 0.05) * (1 - 0.05) * ((1 - e))**F_total[i][3]
+       F_array[i].append(x1)
+       F_array[i].append(y1)
+       F_array[i].append(z1)
+       F_array[i].append(q1)
+
+  F_Swaping = np.prod(F_array, axis=0) 
+
+
+  
+
+   # x2, y2, z2, q2 の計算
+  x2 = (1 - F_Swaping[0]) / 3
+  y2 = (1 - F_Swaping[1]) / 3
+  z2 = (1 - F_Swaping[2]) / 3
+  q2 = (1 - F_Swaping[3]) / 3
+
+   # p1, p2, p3, p4 の計算
+  p1 = (F_Swaping[1]*x2 + F_Swaping[0]*y2)*(F_Swaping[3]*z2 + F_Swaping[2]*q2) + 4*x2*y2*z2*q2
+  p2 = 2*x2*y2*(F_Swaping[3]*z2 + F_Swaping[2]*q2) + 2*z2*q2*(F_Swaping[1]*x2 + F_Swaping[0]*y2)
+  p3 = (F_Swaping[0]*F_Swaping[1] + x2*y2)*(F_Swaping[2]*F_Swaping[3] + z2*q2) + 4*x2*y2*z2*q2
+
+   # 元のコードの記述通り (x1*y1 + x1*y2)
+  p4 = 2*x2*y2*(F_Swaping[2]*F_Swaping[3] + z2*q2) + 2*z2*q2*(F_Swaping[0]*F_Swaping[1] + F_Swaping[0]*y2)
+
+  Distilation_value = p3 / (p1 + p2 + p3 + p4)
+
+    
+  
+  
+  
+
+  if mode =="brentq":
+    return Distilation_value -  F_Swaping[3]
+  else:
+    return Distilation_value  
+
+
+def find_valley_entrance(calc_func, F_data):
+    """
+    brentqが迷子にならないよう、確実にマイナスになる上限値（死の谷の入り口）を自動で探す関数
+    """
+    # 1. そもそもエラーがほぼ0の理想状態(1e-9)で「プラス」になるかチェック
+    if calc_func(1e-9, F_data, mode="brentq") <= 0:
+        return -1  # 最初からマイナス（つまりゲートエラー5%の時点で理論上不可能）
+
+    # 2. 0.0001ずつエラー率を上げて、マイナスに落ちる瞬間を探す
+    import numpy as np
+    for test_e in np.arange(0.0001, 0.5, 0.0001):
+        if calc_func(test_e, F_data, mode="brentq") < 0:
+            # マイナスになった！ここが完璧な「右端」だ！
+            return test_e 
+            
+    return -2  # ずっとプラスだった場合（通常はありえない）
 
 
 # --- 6. メインループ ---
@@ -923,8 +1025,12 @@ def main_loop():
     # モード2: 統計解析 (高速周回・グラフなし)
     # ==========================================
     elif mode_idx == 2:
-          options_list = ["A", "B"]
+          options_list = ["n variation (A)", "N variation(B)"]
           Sndmethod_choice, _ = option_select(options_list, "長さの方式:")
+
+          options_list = ["distilliation individualy(A)","distilliation totaly (B)"]
+          distilation_method,_ = option_select(options_list,"distillation方式")
+
           # 試行回数の入力
           forth = 0
           prob = []
@@ -940,6 +1046,11 @@ def main_loop():
           F_list = [] #フィデリティーのカウント
           F_total = []#stepを加算したフィデリティーのカウント
           step_R = []#ラウンド毎のステップ数
+          threshold_value = []#デコヒーレンスの閾値をまとめる配列
+          max_Fidelity = []#各セグメントごとのフィデリティーカウントの最大値をまとめる        
+          min_Fidelity = []#各セグメントごとのフィデリティーカウントの最小値をまとめる
+          seg_seg = []#ディスティレーションメソッドAの格納庫
+
 
           if Sndmethod_choice == "A":
             MaxELs_input = int(input('How many max ELs (Enter number, e.g., 100): '))
@@ -964,6 +1075,7 @@ def main_loop():
 
           # --- 試行ループ ---
           for num_len in range(vals):
+                
                 execution_times = [] # かかった時間 (ステップ数 * 単位時間)
                 step_counts = []     # かかったステップ数
                 probabilty_check = [] #確率でチェック
@@ -974,6 +1086,13 @@ def main_loop():
                   # N (セグメント数) は固定
                 else:
                     sim_params["num_segments"] = num_len +1
+                
+                num_segments = num_len + 1
+                #Fiderity_count = sum(seg.storage_count for seg in segments)+num_len #num_lenはELのメモリの分のカウントこれは、Nを増やす方式にしか対応していないことに注意
+                Fidelity_counts_per_seg = [ [] for _ in range(num_segments) ]#配列を用意！！
+                mean_Fiderity = []
+                F_listR = [ [] for _ in range(num_segments)]#ラウンドとして、フィデリティーカウントの平均値を蓄える
+
 
                 for forth in range(4):    #4 denotes first round of distillation.
 
@@ -1000,8 +1119,11 @@ def main_loop():
                               # ---------------------------------------------------
                               # 1. 光を出していた時間 (Generation Time)
                               # ---------------------------------------------------
+                              
+                              current_counts = [seg.storage_count + 1 for seg in segments]#各のストレージカウントを個々で蓄える
 
-                              Fiderity_count = sum(seg.storage_count for seg in segments)+num_len #num_lenはELのメモリの分のカウントこれは、Nを増やす方式にしか対応していないことに注意
+                              for i in range(num_segments):
+                                Fidelity_counts_per_seg[i].append(current_counts[i])
 
 
                               if method_choice == "A":
@@ -1026,7 +1148,7 @@ def main_loop():
 
 
 
-                              Fiderity_times.append(Fiderity_count)
+                              #Fiderity_times.append(Fiderity_count)
 
                               execution_times.append(t_elapsed)
 
@@ -1038,8 +1160,8 @@ def main_loop():
                                 ttrans = param_dict.get("t_QR", 0.0) + param_dict.get("t_CNOT", 0.0) + param_dict.get("t_AFC")
                                 eta_qst_total = prob_qr
 
-  # その修正した効率を使って tau を計算
-  # 分母の log の中身: 1 - (eta_qst_total^2 * ...)
+                                # その修正した効率を使って tau を計算
+                                # 分母の log の中身: 1 - (eta_qst_total^2 * ...)
                               tau = ((1/(sim_params["R_EPPS"]*sim_params["eta_EPPS"])) * np.log(1-(1-param_dict.get("eps"))**(1/sim_params["num_segments"])) / np.log(1 - (eta_qst_total**2) * (prob_el**sim_params["n_ELs"]) * (prob_ec**(sim_params["n_ELs"]-1)))) * sim_params["separate"] + ttrans
                               #print(tau)
                               #tau = (1/0.95 + ((1+sim_params["n_ELs"])/0.05))* (param_dict.get("eta_AFC"))
@@ -1071,26 +1193,30 @@ def main_loop():
                   #------Distilliationの要素構築------#
                   mean_step = np.mean(step_counts)
                   step_R.append(mean_step)
-                  mean_Fiderity = np.mean(Fiderity_times)#intendをここにしないと,attemptsと、for(4)に入らない
-                  F_listR.append(mean_Fiderity)
+                  for i in range(num_segments):
+                    
+                    #mean_Fiderity[i].append(np.mean(Fidelity_counts_per_seg[i]))#intendをここにしないと,attemptsと、for(4)に入らない
+                    F_listR[i].append(np.mean(Fidelity_counts_per_seg[i]))
 
 
-                #if forth == 0:
-                  #pass
-                #else:
-                  #for r in range(forth-1):
-                    #F_listR[forth] += step_R[r+1]
-                #F_total.append(F_listR[forth])
+               
 
 
                               # F_listR[0] ～ [2] までを処理したいので range(3)
-                for i in range(3):
+                for k in range(num_len):
                     # step_R の [i+1] から [3] までを合計して足す
                     # スライスは「最後の数字を含まない」ので、3まで入れたければ 4 と書く
-                    F_listR[i] += sum(step_R[i+1 : 4])
+                    for i in range(3):    
 
-                # F_total への追加も、ループを使わず一発で追加できます
-                F_total.extend(F_listR)
+                        F_listR[k][i] += sum(step_R[i+1 : 4])
+
+                
+            
+                
+
+                
+
+
 
 
 
@@ -1118,39 +1244,16 @@ def main_loop():
 
                 print(mean_time)
 
-                # 平均レート (1 / 平均時間)
-                #edr = 1.0 / mean_time #平均時間で割らずにそれぞれのタイムで割ってedr求める
-
-
-                #edr_pre = 1.0 / np.array(execution_times)
-                #edr = np.mean(edr_pre)
+                
                 t_err = np.std(execution_times,ddof=1)/np.sqrt(attempts)
 
 
-                #N =len(execution_times)
-                #t_sem =  t_std / np.sqrt(N)#これは標準誤差に限る
-                #edr_err = (edr **2) * t_sem
-                #edr_err = (edr **2) * t_std * 1.96
+                
 
 
 
 
-                #edr_min = time_low / mean_time
-                #edr_max = time_high / mean_time
-                #edr_min = (1-std_dev_time/mean_time)/mean_time
-                #edr_max = (1+std_dev_time/mean_time)/mean_time
-                #if time_low > (mean_time * 0.1):
-                    # 平均の10%よりは時間かかってるなら、普通に計算
-                    #edr_max = 1.0 / time_low
-                #else:
-                    # 時間が0付近、またはマイナスになる場合は、エラーバーを「平均の2倍」程度で止める
-                    # (これ以上伸ばすとグラフが見えなくなるため)
-                    #edr_max = edr * 2.0
-
-                # 4. エラーバーの長さ (中心からの距離)
-                #err_down = edr - edr_min
-                #err_up = edr_max - edr
-                #edr=edr/10 #デバック
+                
                 mean_list.append(mean_time)
                 x_list.append(sim_params["num_segments"]*sim_params["n_ELs"]*sim_params["l"])
                 y_list.append(mean_time)
@@ -1194,27 +1297,27 @@ def main_loop():
           y_data3 = np.array(y_list3)
 
           dlab2 = ["STDplot"] # ラベル
-          plt.figure() # <--- これで「新しい白紙」を用意する！
-          plotter(x_data2, y_data2, xlabel="ARC-R distance (km)", dlabels=dlab2)
+        #   plt.figure() # <--- これで「新しい白紙」を用意する！
+        #   plotter(x_data2, y_data2, xlabel="ARC-R distance (km)", dlabels=dlab2)
           dlab3 = ["EDR95plot"]
-          plt.figure() # <--- これで「新しい白紙」を用意する！
-          plotter(x_data, y_data3, xlabel="ARC-R distance (km)", dlabels=dlab3)
+        #   plt.figure() # <--- これで「新しい白紙」を用意する！
+        #   plotter(x_data, y_data3, xlabel="ARC-R distance (km)", dlabels=dlab3)
 
 
           #ヒストグラム
           print("\nDisplaying Histogram for the last distance setting...")
-          plt.figure(figsize=(10, 5))
-          plt.hist(step_counts, bins=20, color='skyblue', edgecolor='black', alpha=0.7)
+          #plt.figure(figsize=(10, 5))
+          #plt.hist(step_counts, bins=20, color='skyblue', edgecolor='black', alpha=0.7)
 
           # 平均値のライン
-          plt.axvline(mean_step, color='red', linestyle='dashed', linewidth=1.5, label=f'Mean: {mean_step:.1f}')
+          #plt.axvline(mean_step, color='red', linestyle='dashed', linewidth=1.5, label=f'Mean: {mean_step:.1f}')
 
-          plt.title(f"Distribution of Steps to Success (Last Trial)")
-          plt.xlabel("Steps")
-          plt.ylabel("Frequency")
-          plt.legend()
-          plt.grid(axis='y', alpha=0.5)
-          plt.show()
+        #   plt.title(f"Distribution of Steps to Success (Last Trial)")
+        #   plt.xlabel("Steps")
+        #   plt.ylabel("Frequency")
+        #   plt.legend()
+        #   plt.grid(axis='y', alpha=0.5)
+          #plt.show()
           #Debag
           if method_choice == "A":
             print(f"自分の値{mean_list[0]}")
@@ -1233,7 +1336,7 @@ def main_loop():
 
           num = 0
           ydata4 = np.array(prob)
-          plotter(x_data, ydata4, xlabel="ARC-R distance (km)", dlabels=dlab3)
+          #plotter(x_data, ydata4, xlabel="ARC-R distance (km)", dlabels=dlab3)
 
           while True :
 
@@ -1247,46 +1350,80 @@ def main_loop():
 
           while True :
 
-
-            if Sndmethod_choice == "B":
-              print(f"{num+1}の時のトータルフィデリティーの平均値{F_list[num]} ここ0になるのなぜか一応確認すべき（恐らくインテンドを変えたことによるミス）")
-            else:
-              print(f"{num+1}の時のトータルフィデリティーの平均値{(num+1)}")
+            #フィデリティーカウントのデバック：ここでは、AFCQM分の値のみが算出されているので恐らくOK！後のデバック大会の所で使うかも！！
+            # if Sndmethod_choice == "B":
+            #   print(f"{num+1}の時のトータルフィデリティーの平均値{F_list[num]} ここ0になるのなぜか一応確認すべて（恐らくインテンドを変えたことによるミス）")
+            # else:
+            #   print(f"{num+1}の時のトータルフィデリティーの平均値{(num+1)}")
 
             num+=1
             if num==len(prob):
               break
 
-    #-----------Fiderityの計算式(N=1,n=1の時のみ対応)------------#
-          for confirmation in range(len(F_total)):
-            #print(f"The individual Fiderity value of {confirmation+1} value {(1-0.05)*(1-0.05)*((1-0.0001))**F_total[confirmation]}") #正しいバージョン
-            print(f"The individual Fiderity value of {confirmation+1} value {(1-0.05)*(1-0.05)*((1-0.00001))**F_total[confirmation]}")#理想的なバージョン
+    #-----------Fiderityの計算式------------#
+                
+                #ーーーーー参考ーーーーーー
+                # F_listR[k][i] += sum(step_R[i+1 : 4])
 
-          max_value=max(F_total)
-          min_value = min(F_total)
+                # # F_total への追加も、ループを使わず一発で追加できます
+                # F_total.extend(F_listR)
+
+          for confirmation in range(num_len):
+            max_value=max(F_listR[confirmation])
+            min_value = min(F_listR[confirmation])
+            max_Fidelity.append(max_value)       
+            min_Fidelity.append(min_value) 
+
+            print("----------------------------------------------")
+            for number in range(4):
+                #print(f"The individual Fiderity value of {confirmation+1} value {(1-0.05)*(1-0.05)*((1-0.0001))**F_total[confirmation]}") #正しいバージョン
+                print(f"The individual Fiderity value of {confirmation+1} value {(1-0.05)*(1-0.05)*((1-0.00001))**F_listR[confirmation][number]}")#理想的なバージョン
+          
+                # --- プロトコルA の探索 ---
+          upper_A = find_valley_entrance(Distilation_caluculation_A, F_listR)
+
+          if upper_A == -1:
+            print("【プロトコルA】 ゲートエラー(0.05)の壁が厚く、理論上ディスティレーションは不可能です。")
+          elif upper_A == -2:
+            print("【プロトコルA】 適切な上限が見つかりませんでした。")
+          else:
+            # 偵察部隊が見つけた完璧な上限(upper_A)を使う！
+            mathematic_value1 = brentq(lambda e: Distilation_caluculation_A(e, F_listR, mode="brentq"), 1e-9, upper_A)
+            check_diff1 = Distilation_caluculation_A(mathematic_value1, F_listR, mode="brentq")
+            print(f"【結果A】 Hop-by-Hop : ε = {mathematic_value1:.10f}  (誤差: {check_diff1:.2e})")
+
+        # --- プロトコルB の探索 ---
+          upper_B = find_valley_entrance(Distilation_caluculation_B, F_listR)
+
+          if upper_B == -1:
+            print("【プロトコルB】 ゲートエラー(0.05)の壁が厚く、理論上ディスティレーションは不可能です。")
+          elif upper_B == -2:
+            print("【プロトコルB】 適切な上限が見つかりませんでした。")
+          else:
+            # 偵察部隊が見つけた完璧な上限(upper_B)を使う！
+            mathematic_value2 = brentq(lambda e: Distilation_caluculation_B(e, F_listR, mode="brentq"), 1e-9, upper_B)
+            check_diff2 = Distilation_caluculation_B(mathematic_value2, F_listR, mode="brentq")
+            print(f"【結果B】 End-to-End : ε = {mathematic_value2:.10f}  (誤差: {check_diff2:.2e})")
+
+          
+
+          
+
+          
+
+                
+
+            
+                
+
+        #   F4_threshold = (1 - 0.05) * (1 - 0.05) * ((1 - mathematic_value))**min_value #ここで、数値解析を行い閾値を定義
+        #   Fiderity = (1-0.05)*(1-0.05)*((1-mathematic_value))**max_value
+        #   Fiderity2 = (1-0.05)*(1-0.05)*((1-mathematic_value))**min_value
 
 
-          try:
-            mathematic_value=brentq(lambda e: Distilation_caluculation(e,F_total,mode="brentq"),1e-9,0.1)
 
-            check_diff = Distilation_caluculation(mathematic_value, F_total)
-
-            print(f"【結果】 F' = F4 となる損益分岐点が見つかりました！")
-            print(f"  ε (epsilon) = {mathematic_value:.10f}")
-            print(f"  (検算時の誤差: {check_diff:.2e})")
-
-          except ValueError:
-            print("【エラー】 指定した範囲 (1e-9 〜 0.1) では F' = F4 となる点が見つかりませんでした。")
-            print("条件が厳しすぎるか、F_total の設定値を見直す必要があります。")
-
-          F4_threshold = (1 - 0.05) * (1 - 0.05) * ((1 - mathematic_value))**min_value #ここで、数値解析を行い閾値を定義
-          Fiderity = (1-0.05)*(1-0.05)*((1-mathematic_value))**max_value
-          Fiderity2 = (1-0.05)*(1-0.05)*((1-mathematic_value))**min_value
-
-
-
-          print(f"基準となる初期フィデリティ (F4相当): {F4_threshold:.6f}")
-          print("-" * 50)
+        #   print(f"基準となる初期フィデリティ (F4相当): {F4_threshold:.6f}")
+        #   print("-" * 50)
 
           # ---------------------------------------------------------
           # 2. ループ探索
@@ -1294,7 +1431,8 @@ def main_loop():
           # 0.00001 から 0.0001 まで 0.00001 刻みで変化させる
           epsilon_values = np.arange(0.00001, 0.00011, 0.00001)
 
-          results = []
+          resultsA = []
+          resultsB = []
           crossed_threshold = False
 
           print(f"{'e (epsilon)':<12} | {'Distilation Value':<20} | {'判定 (vs F4)'}")
@@ -1303,38 +1441,26 @@ def main_loop():
           for e in epsilon_values:
               # --- 計算ロジック (提供された式) ---
               # x1, y1, z1, q1 の計算 (理想の値)
-              Distilation_value=Distilation_caluculation(e,F_total)
+              Distilation_value1=Distilation_caluculation_A(e, F_listR,mode= "nomal")
+              Distilation_value2=Distilation_caluculation_B(e, F_listR,mode= "nomal")
+
               # 結果の保存
-              results.append(Distilation_value)
+              resultsA.append(Distilation_value1)
+              resultsB.append(Distilation_value2)
 
-          realistic = 0.00001
-          Distilation_value=Distilation_caluculation(realistic,F_total)
+        
 
-          #Distilation_value = ((Fiderity)**2 + (1/9) *(1-Fiderity)**2)/((Fiderity)**2+(2/3)*Fiderity*(1-Fiderity)+(5/9)*(1-Fiderity)**2) #これは、簡略化したディスティレーションの値
-          if Distilation_value > Fiderity2 :
-            print(f"distillation is succeed!!!----> Distilated value is {Distilation_value}")
-            print(f"In this case the decohirence value is assumed as {realistic}")
-            print("These value is gained by the state of |φ+> so we have to apply σy gate")
-          else:
-            print(f"distillation is failed...----> Distilated value is {Distilation_value}")
-            print(f"In this case the decohirence value is assumed as {realistic}")
-            print("These value is gained by the state of |φ+> so we have to apply σy gate")
-
-          results = np.array(results)
-          threshold_line = np.full_like(epsilon_values, F4_threshold)
-          print(f"The threshold value is ---->{mathematic_value}")
-          print(f"so we must obtain memorytime more than {0.0001/mathematic_value}s")
-          print("but I confused why this below plot is nonliner")
+          
 
           #プロッター関数を使った場合これで、一つのグラフにまとめたいというか、コードの意味の深層理解をしたい所
           # plt.figure() # <--- これで「新しい白紙」を用意する！
           # plotter(epsilon_values, results, xlabel="Decoherence Value", dlabels="Distillation Result (F')")
           # plotter(epsilon_values, threshold_line, xlabel="Decoherence Value", dlabels="Threshold ")
 
-          plt.plot(epsilon_values, results, label="Distillation Result (F')")
+          plt.plot(epsilon_values, resultsA, label="Distillation Result individualy", color="blue")
 
           # 2本目：閾値のライン（比較しやすいように linestyle="--" で点線にします）
-          plt.plot(epsilon_values, threshold_line, label="Threshold (F4)", linestyle="--", color="red")
+          plt.plot(epsilon_values, resultsB, label="Distillation Result totally", color="red")
 
           # ---------------------------------------------------------
           # グラフの見た目を整える（ラベルや凡例）
@@ -1348,6 +1474,8 @@ def main_loop():
 
           # 最後にグラフを表示！
           plt.show()
+
+
 
 
 
