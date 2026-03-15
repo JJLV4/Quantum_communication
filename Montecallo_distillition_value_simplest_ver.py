@@ -938,7 +938,6 @@ def main_loop():
           y_err_lower = []  # エラーバー下側
           y_err_upper = []  # エラーバー上側
           F_list = [] #フィデリティーのカウント
-          F_listR = []#round ごとのF
           F_total = []#stepを加算したフィデリティーのカウント
           step_R = []#ラウンド毎のステップ数
 
