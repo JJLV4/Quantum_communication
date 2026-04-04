@@ -8,7 +8,7 @@ import time
 from IPython.display import clear_output, display
 import os
 from scipy.optimize import brentq
-
+import itertools
 #from google.colab import drive
 #drive.mount('/content/drive') # Excelを使用する場合はコメントアウトを外す2
 
@@ -77,7 +77,7 @@ class RepeaterSegment:
                 break
         return count
 
-    def step(self, params,method):
+    def step(self, params,method,e):
 
         #print(f"Debag Qr{params["prob_Global_Swap"]}")
         #print(f"Debag AFC{params["prob_AFC"]}") # Fixed: Changed 'prob_afc' to 'prob_AFC'
@@ -89,11 +89,12 @@ class RepeaterSegment:
 
         if self.global_swap_done:
            self.storage_count+=1
-           if self.storage_count == 10001 and method == "A":
+           if self.storage_count == ((10000*e)+1) and method == "A":
               self.storage_count =0
               self.global_swap_done=False
               self.reset_process()
-
+           
+           #eは未設定
            elif self.storage_count == (params["separate"]*10000)+1  and method == "B": # Fix: prams -> params
               self.storage_count = 0
               self.global_swap_done=False
@@ -401,9 +402,9 @@ class RepeaterSegment:
         self.global_swap_done = False
 
 # --- 3. シミュレーション実行関数 ---
-def run_simulation(segments, params,method):
+def run_simulation(segments, params,method,e):
     for seg in segments:
-          seg.step(params,method)
+          seg.step(params,method,e)
 
     all_done = True
     for i in range(len(segments)):
@@ -798,7 +799,7 @@ def option_select(options, input_message):
     return options[int(user_input) - 1], int(user_input)
 
 
-def Distilation_caluculation(e,F_total,mode,Sndmethod_choice):
+def Distilation_caluculation(e,F_total,mode):
   x1 = (1 - 0.05) * (1 - 0.05) * ((1 - e))**F_total[0]
   y1 = (1 - 0.05) * (1 - 0.05) * ((1 - e))**F_total[1]
   z1 = (1 - 0.05) * (1 - 0.05) * ((1 - e))**F_total[2]
@@ -826,69 +827,108 @@ def Distilation_caluculation(e,F_total,mode,Sndmethod_choice):
     return Distilation_value
 
 def Distilation_caluculation_A(e,F_total,Sndmethod_choice,num_len,mode):
-  Distilation = []
+  Distilation =  [-1] * len(F_total)
   F_index = []
+  Distilation_value =  [-1] * len(F_total)
+  b_f = -1 
   
+  
+  base_indices = [0,1,2,3]
+  
+  best_fidelity = [-1] * len(F_total)
+  best_pattern = None
 
-  if Sndmethod_choice == 'B':
-    for i in range(len(F_total)):
-        
-        x1 = (1 - 0.05) * (1 - 0.05) * (1-(1/2)*(1 - np.exp(-(F_total[i][0]*10**(-4))/e)))
-        y1 = (1 - 0.05) * (1 - 0.05) *(1-(1/2)*(1 - np.exp(-(F_total[i][1]*10**(-4))/e)))
-        z1 = (1 - 0.05) * (1 - 0.05) * (1-(1/2)*(1 - np.exp(-(F_total[i][2]*10**(-4))/e)))
-        q1 = (1 - 0.05) * (1 - 0.05) * (1-(1/2)*(1 - np.exp(-(F_total[i][3]*10**(-4))/e)))
-        F_index.append(q1) 
+  if Sndmethod_choice == 'B': 
 
-        # x2, y2, z2, q2 の計算
-        x2 = (1 - x1) / 3
-        y2 = (1 - y1) / 3
-        z2 = (1 - z1) / 3
-        q2 = (1 - q1) / 3
+    for count,perm in enumerate(itertools.permutations(base_indices,4)):    
+        #print(f"Debug count {count}")
+        for i in range(len(F_total)):
+            
+            now_index = []
+            for idx in perm:
+                # 手打ちしていたx1, y1...の代わりに、idxを使って1行で書きます
+                val = (1 - 0.05) * (1 - 0.05) * (1 - (1/2) * (1 - np.exp(-(F_total[i][idx] * 10**(-4)) / e)))
+                now_index.append(val)
+            # x1 = (1 - 0.05) * (1 - 0.05) * (1-(1/2)*(1 - np.exp(-(F_total[i][0]*10**(-4))/e)))
+            # y1 = (1 - 0.05) * (1 - 0.05) *(1-(1/2)*(1 - np.exp(-(F_total[i][1]*10**(-4))/e)))
+            # z1 = (1 - 0.05) * (1 - 0.05) * (1-(1/2)*(1 - np.exp(-(F_total[i][2]*10**(-4))/e)))
+            # q1 = (1 - 0.05) * (1 - 0.05) * (1-(1/2)*(1 - np.exp(-(F_total[i][3]*10**(-4))/e)))
 
-        # p1, p2, p3, p4 の計算
-        p1 = (y1*x2 + x1*y2)*(q1*z2 + z1*q2) + 4*x2*y2*z2*q2
-        p2 = 2*x2*y2*(q1*z2 + z1*q2) + 2*z2*q2*(y1*x2 + x1*y2)
-        p3 = (x1*y1 + x2*y2)*(z1*q1 + z2*q2) + 4*x2*y2*z2*q2
+            F_mmx = max(now_index)  
+            if count == 0:  
+                F_index.append(F_mmx) 
 
-        # 元のコードの記述通り (x1*y1 + x1*y2)
-        p4 = 2*x2*y2*(z1*q1 + z2*q2) + 2*z2*q2*(x1*y1 + x1*y2)
+            # x2, y2, z2, q2 の計算
+            x2 = (1 - now_index[0]) / 3
+            y2 = (1 - now_index[1]) / 3
+            z2 = (1 - now_index[2]) / 3
+            q2 = (1 - now_index[3]) / 3
 
-        Distilation_value = p3 / (p1 + p2 + p3 + p4)
+            # p1, p2, p3, p4 の計算
+            p1 = (now_index[1]*x2 + now_index[0]*y2)*(now_index[3]*z2 + now_index[2]*q2) + 4*x2*y2*z2*q2
+            p2 = 2*x2*y2*(now_index[3]*z2 + now_index[2]*q2) + 2*z2*q2*(now_index[1]*x2 + now_index[0]*y2)
+            p3 = (now_index[0]*now_index[1] + x2*y2)*(now_index[2]*now_index[3] + z2*q2) + 4*x2*y2*z2*q2
 
-        Distilation.append(Distilation_value)
+            # 元のコードの記述通り (x1*y1 + x1*y2)
+            p4 = 2*x2*y2*(now_index[2]*now_index[3] + z2*q2) + 2*z2*q2*(now_index[0]*now_index[1] + now_index[0]*y2)
+
+            Distilation_value[i] = p3 / (p1 + p2 + p3 + p4)
+
+            if Distilation_value[i] > best_fidelity[i]:
+                best_fidelity[i] = Distilation_value[i]
+                Distilation[i] = Distilation_value[i]
+                best_pattern = perm
+                #print(f"Debug Distillation{Distilation[i]} perm{perm}")
 
     F_max = np.prod(F_index)
 
     Total_Distilation_Fidelity = np.prod(Distilation)
+    print(f"最適なディスティレーションの順番は{best_pattern}です！！{Distilation[0]}")
 
   else:
-    x1 = (1 - 0.05) * ((1 - 0.05)**(num_len+1)) * ((1-0.05)**(num_len)) * (1-(1/2)*(1 - np.exp(-(F_total[0]*10**(-4))/e)))
-    y1 = (1 - 0.05) * ((1 - 0.05)**(num_len+1)) * ((1-0.05)**(num_len)) * (1-(1/2)*(1 - np.exp(-(F_total[1]*10**(-4))/e)))
-    z1 = (1 - 0.05) * ((1 - 0.05)**(num_len+1)) * ((1-0.05)**(num_len)) * (1-(1/2)*(1 - np.exp(-(F_total[2]*10**(-4))/e)))
-    q1 = (1 - 0.05) * ((1 - 0.05)**(num_len+1)) * ((1-0.05)**(num_len)) * (1-(1/2)*(1 - np.exp(-(F_total[3]*10**(-4))/e)))
+    for count,perm in enumerate(itertools.permutations(base_indices,4)):    
+        #print(f"Debug count {count}")
+      
+        now_index = []
+        for idx in perm:
+            # 手打ちしていたx1, y1...の代わりに、idxを使って1行で書きます
+            val = (1 - 0.05) * ((1 - 0.05)**(num_len)) * ((1-0.05)**(num_len-1))*((1-0.05)**(num_len-1)) * (1-(1/2)*(1 - np.exp(-(F_total[idx]*10**(-4))/e)))
+            now_index.append(val)
 
-    # x2, y2, z2, q2 の計算
-    x2 = (1 - x1) / 3
-    y2 = (1 - y1) / 3
-    z2 = (1 - z1) / 3
-    q2 = (1 - q1) / 3
+         
+        if count == 0:  
+            F_mmx = max(now_index)     
+    
+        # x2, y2, z2, q2 の計算
+        x2 = (1 - now_index[0]) / 3
+        y2 = (1 - now_index[1]) / 3
+        z2 = (1 - now_index[2]) / 3
+        q2 = (1 - now_index[3]) / 3
 
-    # p1, p2, p3, p4 の計算
-    p1 = (y1*x2 + x1*y2)*(q1*z2 + z1*q2) + 4*x2*y2*z2*q2
-    p2 = 2*x2*y2*(q1*z2 + z1*q2) + 2*z2*q2*(y1*x2 + x1*y2)
-    p3 = (x1*y1 + x2*y2)*(z1*q1 + z2*q2) + 4*x2*y2*z2*q2
+        # p1, p2, p3, p4 の計算
+        p1 = (now_index[1]*x2 + now_index[0]*y2)*(now_index[3]*z2 + now_index[2]*q2) + 4*x2*y2*z2*q2
+        p2 = 2*x2*y2*(now_index[3]*z2 + now_index[2]*q2) + 2*z2*q2*(now_index[1]*x2 + now_index[0]*y2)
+        p3 = (now_index[0]*now_index[1] + x2*y2)*(now_index[2]*now_index[3] + z2*q2) + 4*x2*y2*z2*q2
 
-    # 元のコードの記述通り (x1*y1 + x1*y2)
-    p4 = 2*x2*y2*(z1*q1 + z2*q2) + 2*z2*q2*(x1*y1 + x1*y2)
+        # 元のコードの記述通り (x1*y1 + x1*y2)
+        p4 = 2*x2*y2*(now_index[2]*now_index[3] + z2*q2) + 2*z2*q2*(now_index[0]*now_index[1] + now_index[0]*y2)
+        
+        Distilation_value2 = p3 / (p1 + p2 + p3 + p4)
 
-    Distilation_value = p3 / (p1 + p2 + p3 + p4)   
+        if Distilation_value2 > b_f:
+                b_f = Distilation_value2
+                Distilation2 = Distilation_value2
+                best_pattern = perm
+           
 
     
     
 
-    F_max = q1
+   
+    F_max = F_mmx
+    Total_Distilation_Fidelity = Distilation2
+    print(f"最適なディスティレーションの順番は{best_pattern}です！！{Distilation2}")
 
-    Total_Distilation_Fidelity = Distilation_value
 
 
 
@@ -896,67 +936,142 @@ def Distilation_caluculation_A(e,F_total,Sndmethod_choice,num_len,mode):
     return Total_Distilation_Fidelity - F_max
   else:
     return Total_Distilation_Fidelity
-  
+
+
+def combine_two_segments(f_left, f_right, k , perm):
+    res = [0.0] * 4
+    for i in range(4):
+        # f_leftのi番目と、f_rightのperm[i]番目を掛け合わせる
+        res[i] = f_left[i] * f_right[perm[i]]
+        print(f"perm[{i}]{perm[i]}")
+    
+    
+    return res
+
 def Distilation_caluculation_B(e,F_total,Sndmethod_choice,num_len,mode):
+  
+
+  base_indices = [0,1,2,3]
+  
+  best_fidelity = -1
+  best_pattern = None
+
+
+
+
   Distilation = []
-  F_array = [ [] for _ in range(len(F_total)) ]
-  F_Swaping = []
+  
+  
+  F_index = []
+
+
   if Sndmethod_choice == 'B':
-    for i in range(len(F_total)):
-        x1 = (1 - 0.05) * (1 - 0.05) * (1-(1/2)*(1 - np.exp(-(F_total[i][0]*10**(-4))/e)))
-        y1 = (1 - 0.05) * (1 - 0.05) *(1-(1/2)*(1 - np.exp(-(F_total[i][1]*10**(-4))/e)))
-        z1 = (1 - 0.05) * (1 - 0.05) * (1-(1/2)*(1 - np.exp(-(F_total[i][2]*10**(-4))/e)))
-        q1 = (1 - 0.05) * (1 - 0.05) * (1-(1/2)*(1 - np.exp(-(F_total[i][3]*10**(-4))/e)))
-        F_array[i].append(x1)
-        F_array[i].append(y1)
-        F_array[i].append(z1)
-        F_array[i].append(q1)
+    for count,perm in enumerate(itertools.permutations(base_indices,4)):
+        F_array = []
+        now_index =[(1 - 0.05) * (1 - 0.05) * (1 - (1/2) * (1 - np.exp(-(x * 10**(-4)) / e))) 
+                    for x in F_total[0]]
+        for i in range(len(F_total)):
+            if i+1 < len(F_total):
+              Swap_index = [(1 - 0.05) * (1 - 0.05) * (1 - (1/2) * (1 - np.exp(-(y * 10**(-4)) / e)))
+                            for y in F_total[i+1]]
+              now_index = combine_two_segments(now_index, Swap_index, i ,perm)
+              #print(f"now_index{now_index}")
+            if count == 0:
+                F_index.append(max(F_total[i]))  
+            
 
-    F_Swaping = np.prod(F_array, axis=0) 
+                # val = (1 - 0.05) * (1 - 0.05) * (1 - (1/2) * (1 - np.exp(-(F_total[i][idx] * 10**(-4)) / e)))
+                # now_index.append(val)
 
+        F_array.append(now_index[0])
+        F_array.append(now_index[1])
+        F_array.append(now_index[2])
+        F_array.append(now_index[3])
+        #print(f"F_array{F_array}")
+         
 
+        # F_Swaping = np.prod(F_array, axis=0)
+        if count == 0: 
+            F_max = np.prod(F_index)
+
+        for count2,perm2 in enumerate(itertools.permutations(base_indices,4)):
+            
+            next_index= []
+            for idx2 in perm2:
+                val2=F_array[idx2]
+                #print(f"val2{val2}")
+                next_index.append(val2)
+    
+            #print(f"デバック{next_index[0]}")
+            # x2, y2, z2, q2 の計算
+            x2 = (1 - next_index[0]) / 3
+            y2 = (1 - next_index[1]) / 3
+            z2 = (1 - next_index[2]) / 3
+            q2 = (1 - next_index[3]) / 3
+
+            # p1, p2, p3, p4 の計算
+            p1 = (next_index[1]*x2 + next_index[0]*y2)*(next_index[3]*z2 + next_index[2]*q2) + 4*x2*y2*z2*q2
+            p2 = 2*x2*y2*(next_index[3]*z2 + next_index[2]*q2) + 2*z2*q2*(next_index[1]*x2 + next_index[0]*y2)
+            p3 = (next_index[0]*next_index[1] + x2*y2)*(next_index[2]*next_index[3] + z2*q2) + 4*x2*y2*z2*q2
+
+            # 元のコードの記述通り (x1*y1 + x1*y2)
+            p4 = 2*x2*y2*(next_index[2]*next_index[3] + z2*q2) + 2*z2*q2*(next_index[0]*next_index[1] + next_index[0]*y2)
+            
+            Distilation_value = p3 / (p1 + p2 + p3 + p4)
+
+            if Distilation_value > best_fidelity:
+                best_fidelity = Distilation_value
+                Distilation = Distilation_value
+                best_pattern = perm
+                best_pattern2 = perm2
+                print(f"Debug Distillation{Distilation} perm{perm},perm2{perm2}")
     
 
-    # x2, y2, z2, q2 の計算
-    x2 = (1 - F_Swaping[0]) / 3
-    y2 = (1 - F_Swaping[1]) / 3
-    z2 = (1 - F_Swaping[2]) / 3
-    q2 = (1 - F_Swaping[3]) / 3
+    Total_Distilation_Fidelity = Distilation
+    print(f"最適なディスティレーションの順番は{best_pattern2}で、ベルスワップ{best_pattern}!!{Distilation}")
 
-    # p1, p2, p3, p4 の計算
-    p1 = (F_Swaping[1]*x2 + F_Swaping[0]*y2)*(F_Swaping[3]*z2 + F_Swaping[2]*q2) + 4*x2*y2*z2*q2
-    p2 = 2*x2*y2*(F_Swaping[3]*z2 + F_Swaping[2]*q2) + 2*z2*q2*(F_Swaping[1]*x2 + F_Swaping[0]*y2)
-    p3 = (F_Swaping[0]*F_Swaping[1] + x2*y2)*(F_Swaping[2]*F_Swaping[3] + z2*q2) + 4*x2*y2*z2*q2
-
-    # 元のコードの記述通り (x1*y1 + x1*y2)
-    p4 = 2*x2*y2*(F_Swaping[2]*F_Swaping[3] + z2*q2) + 2*z2*q2*(F_Swaping[0]*F_Swaping[1] + F_Swaping[0]*y2)
-    F_max = F_Swaping[3]
   else:
-    x1 = (1 - 0.05) * ((1 - 0.05)**(num_len+1)) * ((1-0.05)**(num_len)) * (1-(1/2)*(1 - np.exp(-(F_total[0]*10**(-4))/e)))
-    y1 = (1 - 0.05) * ((1 - 0.05)**(num_len+1)) * ((1-0.05)**(num_len)) * (1-(1/2)*(1 - np.exp(-(F_total[1]*10**(-4))/e)))
-    z1 = (1 - 0.05) * ((1 - 0.05)**(num_len+1)) * ((1-0.05)**(num_len)) * (1-(1/2)*(1 - np.exp(-(F_total[2]*10**(-4))/e)))
-    q1 = (1 - 0.05) * ((1 - 0.05)**(num_len+1)) * ((1-0.05)**(num_len)) * (1-(1/2)*(1 - np.exp(-(F_total[3]*10**(-4))/e)))
+    for count,perm in enumerate(itertools.permutations(base_indices,4)):    
+        #print(f"Debug count {count}")
+      
+        now_index = []
+        for idx in perm:
+            # 手打ちしていたx1, y1...の代わりに、idxを使って1行で書きます
+            val = (1 - 0.05) * ((1 - 0.05)**(num_len)) * ((1-0.05)**(num_len-1))*((1-0.05)**(num_len-1)) * (1-(1/2)*(1 - np.exp(-(F_total[idx]*10**(-4))/e)))
+            now_index.append(val)
 
-    # x2, y2, z2, q2 の計算
-    x2 = (1 - x1) / 3
-    y2 = (1 - y1) / 3
-    z2 = (1 - z1) / 3
-    q2 = (1 - q1) / 3
+         
+        if count == 0:  
+            F_mmx = max(now_index)     
+    
+        # x2, y2, z2, q2 の計算
+        x2 = (1 - now_index[0]) / 3
+        y2 = (1 - now_index[1]) / 3
+        z2 = (1 - now_index[2]) / 3
+        q2 = (1 - now_index[3]) / 3
 
-    # p1, p2, p3, p4 の計算
-    p1 = (y1*x2 + x1*y2)*(q1*z2 + z1*q2) + 4*x2*y2*z2*q2
-    p2 = 2*x2*y2*(q1*z2 + z1*q2) + 2*z2*q2*(y1*x2 + x1*y2)
-    p3 = (x1*y1 + x2*y2)*(z1*q1 + z2*q2) + 4*x2*y2*z2*q2
+        # p1, p2, p3, p4 の計算
+        p1 = (now_index[1]*x2 + now_index[0]*y2)*(now_index[3]*z2 + now_index[2]*q2) + 4*x2*y2*z2*q2
+        p2 = 2*x2*y2*(now_index[3]*z2 + now_index[2]*q2) + 2*z2*q2*(now_index[1]*x2 + now_index[0]*y2)
+        p3 = (now_index[0]*now_index[1] + x2*y2)*(now_index[2]*now_index[3] + z2*q2) + 4*x2*y2*z2*q2
 
-    # 元のコードの記述通り (x1*y1 + x1*y2)
-    p4 = 2*x2*y2*(z1*q1 + z2*q2) + 2*z2*q2*(x1*y1 + x1*y2)
+        # 元のコードの記述通り (x1*y1 + x1*y2)
+        p4 = 2*x2*y2*(now_index[2]*now_index[3] + z2*q2) + 2*z2*q2*(now_index[0]*now_index[1] + now_index[0]*y2)
+        
+        Distilation_value2 = p3 / (p1 + p2 + p3 + p4)
 
-    Distilation_value = p3 / (p1 + p2 + p3 + p4)   
+        if Distilation_value2 > b_f:
+                b_f = Distilation_value2
+                Distilation2 = Distilation_value2
+                best_pattern = perm
 
-    F_max = q1  
+    Total_Distilation_Fidelity = Distilation2
+    print(f"最適なディスティレーションの順番は{best_pattern}です！！{Distilation2}")       
+
+   
  
 
-  Distilation_value = p3 / (p1 + p2 + p3 + p4)
+  
 
     
   
@@ -964,9 +1079,9 @@ def Distilation_caluculation_B(e,F_total,Sndmethod_choice,num_len,mode):
   
 
   if mode =="brentq":
-    return Distilation_value -  F_max
+    return Total_Distilation_Fidelity -  F_max
   else:
-    return Distilation_value  
+    return Total_Distilation_Fidelity  
 
 
 def find_valley_entrance(calc_func, F_data,Sndmethod_choice,num_len):
@@ -1060,7 +1175,7 @@ def main_loop():
 
         while True:
             step += 1
-            all_complete = run_simulation(segments, sim_params,method_choice)
+            all_complete = run_simulation(segments, sim_params,method_choice,1)
 
             #clear_output(wait=True)
             draw_network(segments, sim_params, step, method_choice)
@@ -1106,6 +1221,12 @@ def main_loop():
           seg_seg = []#ディスティレーションメソッドAの格納庫
           memory_A = []#Hop by HopにおけるメモリAの値
           memory_B = []#END to ENDにおけるメモリBの値
+          F_index = []
+          resultsA = []
+          resultsB = []
+          resultsC = []
+          
+
 
 
           if Sndmethod_choice == "A":
@@ -1128,202 +1249,248 @@ def main_loop():
           # 結果を保存するリスト
 
           start_time = time.time()
+          
+          for e in range(1,3):
+            # --- 試行ループ ---
+            #for num_len in range(vals): 単複数の値を見る時のfor文
+            num_len =vals        #一つのみの値を見る時のnum_len
 
-          # --- 試行ループ ---
-          for num_len in range(vals):
+            execution_times = [] # かかった時間 (ステップ数 * 単位時間)
+            step_counts = []     # かかったステップ数
+            probabilty_check = [] #確率でチェック
+            Fiderity_times = []
+
+            if Sndmethod_choice == "A": # n (EL数) を増やす
+                sim_params["n_ELs"] = num_len 
+                #sim_params["n_ELs"] = num_len +1 このコードを消した際の不具合がないかを調べる
+
                 
-                execution_times = [] # かかった時間 (ステップ数 * 単位時間)
-                step_counts = []     # かかったステップ数
-                probabilty_check = [] #確率でチェック
-                Fiderity_times = []
+            # N (セグメント数) は固定
+            else:
+                sim_params["num_segments"] = num_len 
+                #sim_params["num_segments"] = num_len +1 このコードを消した際の不具合がないかを調べる
 
-                if Sndmethod_choice == "A": # n (EL数) を増やす
-                    sim_params["n_ELs"] = num_len + 1
-                    
-                  # N (セグメント数) は固定
-                else:
-                    sim_params["num_segments"] = num_len +1
-                    
                 
-                num_segments = num_len + 1
-                if Sndmethod_choice =="A":
-                    F_listR = []
-                else:
-                    F_listR = [ [] for _ in range(num_segments)]#ラウンドとして、フィデリティーカウントの平均値を蓄える
+            
+            num_segments = num_len 
+            print(num_segments)#debug
 
-                #Fiderity_count = sum(seg.storage_count for seg in segments)+num_len #num_lenはELのメモリの分のカウントこれは、Nを増やす方式にしか対応していないことに注意
-                Fidelity_counts_per_seg = [ [] for _ in range(num_segments) ]#配列を用意！！
-                mean_Fiderity = []
-                
-                
+            if Sndmethod_choice =="A":
+                F_listR = []
+                print("シングル")
+            else:
+                F_listR = [ [] for _ in range(num_segments)]#ラウンドとして、フィデリティーカウントの平均値を蓄える
+                print("コンプレックス")
+
+            #Fiderity_count = sum(seg.storage_count for seg in segments)+num_len #num_lenはELのメモリの分のカウントこれは、Nを増やす方式にしか対応していないことに注意
+            Fidelity_counts_per_seg = [ [] for _ in range(num_segments) ]#配列を用意！！
+            mean_Fiderity = []
+            
+            
 
 
-                for forth in range(4):    #4 denotes first round of distillation.
+            for forth in range(4):    #4 denotes first round of distillation.
 
 
-                  for attempt in range(attempts):
-                      # 【重要】毎回セグメントを新品に作り直す (リセット)
+                for attempt in range(attempts):
+                    # 【重要】毎回セグメントを新品に作り直す (リセット)
 
-                      # print(f"the number of n:{sim_params["n_ELs"]:.5f}") # Removed excessive print
-                      # print(f"N:{sim_params["num_segments"]:.5f}") # Removed excessive print
+                    # print(f"the number of n:{sim_params["n_ELs"]:.5f}") # Removed excessive print
+                    # print(f"N:{sim_params["num_segments"]:.5f}") # Removed excessive print
 
-                      segments = [RepeaterSegment(i, sim_params["n_ELs"]) for i in range(sim_params["num_segments"]) ]
-                      step = 0
+                    segments = [RepeaterSegment(i, sim_params["n_ELs"]) for i in range(sim_params["num_segments"]) ]
+                    step = 0
 
 
 
                         # 1回のシミュレーション
 
-                      while True:
-                          step += 1
-                          all_complete = run_simulation(segments, sim_params,method_choice)
+                    while True:
+                        step += 1
+                        all_complete = run_simulation(segments, sim_params,method_choice,e)
 
 
-                          if all_complete:
-                              # ---------------------------------------------------
-                              # 1. 光を出していた時間 (Generation Time)
-                              # ---------------------------------------------------
+                        if all_complete:
+                            # ---------------------------------------------------
+                            # 1. 光を出していた時間 (Generation Time)
+                            # ---------------------------------------------------
 
-                              if Sndmethod_choice == "B":
+                            if Sndmethod_choice == "B":
                                 current_counts = [seg.storage_count + 1 for seg in segments]#各のストレージカウントを個々で蓄える
 
                                 for i in range(num_segments):
                                     Fidelity_counts_per_seg[i].append(current_counts[i])
 
 
-                              if method_choice == "A":
-                                  t_generation = (step) * param_dict.get("t_AFC")#＋1はデッドタイム
-                              else:
-                                  t_generation = ((step) * param_dict.get("t_AFC")) / param_dict.get("separate")#＋1はデッドタイム
+                            if method_choice == "A":
+                                t_generation = (step) * param_dict.get("t_AFC")#＋1はデッドタイム
+                            else:
+                                t_generation = ((step) * param_dict.get("t_AFC")) / param_dict.get("separate")#＋1はデッドタイム
 
 
 
 
 
-                              t_latency_total =param_dict.get("t_CNOT") + param_dict.get("t_QR")
+                            t_latency_total =param_dict.get("t_CNOT") + param_dict.get("t_QR")
 
-                              # Sum the golobal_count from all segments
-                              total_golobal_count = sum(seg.golobal_count for seg in segments)
+                            # Sum the golobal_count from all segments
+                            total_golobal_count = sum(seg.golobal_count for seg in segments)
 
-                              t_elapsed = t_generation + t_latency_total #* total_golobal_count
-                              # print(total_golobal_count) # Removed excessive print
-
-
+                            t_elapsed = t_generation + t_latency_total #* total_golobal_count
+                            # print(total_golobal_count) # Removed excessive print
 
 
 
 
-                              #Fiderity_times.append(Fiderity_count)
 
-                              execution_times.append(t_elapsed)
 
-                              if method_choice == "A":
+                            #Fiderity_times.append(Fiderity_count)
+
+                            execution_times.append(t_elapsed)
+
+                            if method_choice == "A":
                                 ttrans = param_dict.get("t_QR", 0.0) + param_dict.get("t_CNOT", 0.0) + param_dict.get("t_AFC")*(sim_params["n_ELs"]-1)
                                 eta_qst_total = prob_qr * (param_dict.get("eta_AFC") ** (sim_params["n_ELs"] - 1))
 
-                              else :
+                            else :
                                 ttrans = param_dict.get("t_QR", 0.0) + param_dict.get("t_CNOT", 0.0) + param_dict.get("t_AFC")
                                 eta_qst_total = prob_qr
 
                                 # その修正した効率を使って tau を計算
                                 # 分母の log の中身: 1 - (eta_qst_total^2 * ...)
-                              tau = ((1/(sim_params["R_EPPS"]*sim_params["eta_EPPS"])) * np.log(1-(1-param_dict.get("eps"))**(1/sim_params["num_segments"])) / np.log(1 - (eta_qst_total**2) * (prob_el**sim_params["n_ELs"]) * (prob_ec**(sim_params["n_ELs"]-1)))) * sim_params["separate"] + ttrans
-                              #print(tau)
-                              #tau = (1/0.95 + ((1+sim_params["n_ELs"])/0.05))* (param_dict.get("eta_AFC"))
-                              #prob_el, prob_afc, prob_qr, prob_ec, tau = probs
+                            tau = ((1/(sim_params["R_EPPS"]*sim_params["eta_EPPS"])) * np.log(1-(1-param_dict.get("eps"))**(1/sim_params["num_segments"])) / np.log(1 - (eta_qst_total**2) * (prob_el**sim_params["n_ELs"]) * (prob_ec**(sim_params["n_ELs"]-1)))) * sim_params["separate"] + ttrans
+                            #print(tau)
+                            #tau = (1/0.95 + ((1+sim_params["n_ELs"])/0.05))* (param_dict.get("eta_AFC"))
+                            #prob_el, prob_afc, prob_qr, prob_ec, tau = probs
 
-                              # print(t_elapsed) # Removed excessive print
+                            # print(t_elapsed) # Removed excessive print
 
-                              if tau-t_elapsed >= 0:
+                            if tau-t_elapsed >= 0:
                                 probabilty_check.append(1)
-                              else:
+                            else:
                                 probabilty_check.append(0)
 
-                              step_counts.append(step)
-                              break
+                            step_counts.append(step)
+                            break
 
-                          # 無限ループ防止 (適当な上限)
-                          if step > 1000000000:
-                              step_counts.append(step) # 失敗扱い
-                              break
+                        # 無限ループ防止 (適当な上限)
+                        if step > 1000000000:
+                            step_counts.append(step) # 失敗扱い
+                            break
 
-                      # 進捗表示 (10%ごと)
-                      if (attempt + 1) % (attempts // 10 + 1) == 0:
-                          print(".", end="")
-
-
+                    # 進捗表示 (10%ごと)
+                    if (attempt + 1) % (attempts // 10 + 1) == 0:
+                        print(".", end="")
 
 
 
-                  #------Distilliationの要素構築------#
-                  mean_step = np.mean(step_counts)
-                  step_R.append(mean_step)
 
-                  if Sndmethod_choice == "B":
+
+                #------Distilliationの要素構築------#
+                mean_step = np.mean(step_counts)
+                step_R.append(mean_step)
+
+                if Sndmethod_choice == "B":
                     for i in range(num_segments):
                         
                         #mean_Fiderity[i].append(np.mean(Fidelity_counts_per_seg[i]))#intendをここにしないと,attemptsと、for(4)に入らない
                         F_listR[i].append(np.mean(Fidelity_counts_per_seg[i]))
 
-                  else:
+                else:
                     F_listR.append(1)        
 
-                  
-                    
+            
+                
 
 
-               
-
-                if Sndmethod_choice == "B":
-                              # F_listR[0] ～ [2] までを処理したいので range(3)
-                    for k in range(num_len):
-                        # step_R の [i+1] から [3] までを合計して足す
-                        # スライスは「最後の数字を含まない」ので、3まで入れたければ 4 と書く
-                        for i in range(3):    
-
-                            F_listR[k][i] += sum(step_R[i+1 : 4])
-
-                else:
+        
+            print(F_listR)#デバック
+            if Sndmethod_choice == "B":
+                        # F_listR[0] ～ [2] までを処理したいので range(3)
+                for k in range(num_len):
+                    # step_R の [i+1] から [3] までを合計して足す
+                    # スライスは「最後の数字を含まない」ので、3まで入れたければ 4 と書く
                     for i in range(3):    
+ 
+                        F_listR[k][i] += sum(step_R[i+1 : 4])
+                        print(f"k={k}, i={i}, F_listRのk階の部屋数={len(F_listR[k])}")
+ 
+            else:
+                for i in range(3):    
 
-                            F_listR[i] += sum(step_R[i+1 : 4])        
+                        F_listR[i] += sum(step_R[i+1 : 4])        
+
+        
+    # --- 計算ロジック (提供された式) ---
+        # x1, y1, z1, q1 の計算 (理想の値)
+            Distilation_value1=Distilation_caluculation_A(e, F_listR,Sndmethod_choice,num_len,mode= "nomal")
+            Distilation_value2=Distilation_caluculation_B(e, F_listR,Sndmethod_choice,num_len,mode= "nomal")
+        
+
+            if Sndmethod_choice == "B":
+                for i in range(len(F_listR)):
+                    q1 = (1 - 0.05) * (1 - 0.05) * (1-(1/2)*(1 - np.exp(-(F_listR[i][3]*10**(-4))/e)))
+                    F_index.append(q1) 
+            
+            else:
+                for i in range(len(F_listR)):
+                    q1 = (1 - 0.05) * (1 - 0.05)**(num_len)*(1-0.05)**(num_len-1)* (1-0.05)**(num_len-1)* (1-(1/2)*(1 - np.exp(-(F_listR[i]*10**(-4))/e)))
+                    F_index.append(q1)
+            
+            print(f"F_index{len(F_index)}")
+            befor_Fiderity = np.prod(F_index)
+            F_index = []
+
+          # 結果の保存
+            resultsA.append(Distilation_value1)
+            resultsB.append(Distilation_value2)
+            resultsC.append(befor_Fiderity)
 
 
-                upper_A = find_valley_entrance(Distilation_caluculation_A, F_listR,Sndmethod_choice,num_len)
+                   
 
-                if upper_A == -1:
-                    print("【プロトコルA】 ゲートエラー(0.05)の壁が厚く、理論上ディスティレーションは不可能です。")
-                    memory_A.append(np.nan)
-                elif upper_A == -2:
-                    print("【プロトコルA】 適切な上限が見つかりませんでした。")
-                    memory_A.append(np.nan)
-                else:
-                    # 偵察部隊が見つけた完璧な上限(upper_A)を使う！
-                    mathematic_value1 = brentq(lambda e: Distilation_caluculation_A(e, F_listR,Sndmethod_choice,num_len, mode="brentq"), upper_A ,1e20)
-                    check_diff1 = Distilation_caluculation_A(mathematic_value1, F_listR,Sndmethod_choice,num_len, mode="brentq")
-                    print(f"【結果A】 Hop-by-Hop : T = {mathematic_value1:.10f}  (誤差: {check_diff1:.2e})")
-                    memory_A.append(mathematic_value1)
+                    
+                    
+                    
+                        
+                            
 
-                # --- プロトコルB の探索 ---
-                upper_B = find_valley_entrance(Distilation_caluculation_B, F_listR,Sndmethod_choice,num_len)
+                
 
-                if upper_B == -1:
-                    print("【プロトコルB】 ゲートエラー(0.05)の壁が厚く、理論上ディスティレーションは不可能です。")
-                    memory_B.append(np.nan)
-                elif upper_B == -2:
-                    print("【プロトコルB】 適切な上限が見つかりませんでした。")
-                    memory_B.append(np.nan)
-                else:
-                    # 偵察部隊が見つけた完璧な上限(upper_B)を使う！
-                    mathematic_value2 = brentq(lambda e: Distilation_caluculation_B(e, F_listR,Sndmethod_choice,num_len, mode="brentq"),upper_B,1e20)
-                    check_diff2 = Distilation_caluculation_B(mathematic_value2, F_listR,Sndmethod_choice,num_len, mode="brentq")
-                    print(f"【結果B】 End-to-End : T = {mathematic_value2:.10f}  (誤差: {check_diff2:.2e})")
-                    memory_B.append(mathematic_value2)
+            # upper_A = find_valley_entrance(Distilation_caluculation_A, F_listR,Sndmethod_choice,num_len)
+
+            # if upper_A == -1:
+            #     print("【プロトコルA】 ゲートエラー(0.05)の壁が厚く、理論上ディスティレーションは不可能です。")
+            #     memory_A.append(np.nan)
+            # elif upper_A == -2:
+            #     print("【プロトコルA】 適切な上限が見つかりませんでした。")
+            #     memory_A.append(np.nan)
+            # else:
+            #     # 偵察部隊が見つけた完璧な上限(upper_A)を使う！
+            #     mathematic_value1 = brentq(lambda e: Distilation_caluculation_A(e, F_listR,Sndmethod_choice,num_len, mode="brentq"), upper_A ,1e20)
+            #     check_diff1 = Distilation_caluculation_A(mathematic_value1, F_listR,Sndmethod_choice,num_len, mode="brentq")
+            #     print(f"【結果A】 Hop-by-Hop : T = {mathematic_value1:.10f}  (誤差: {check_diff1:.2e})")
+            #     memory_A.append(mathematic_value1)
+
+            # # --- プロトコルB の探索 ---
+            # upper_B = find_valley_entrance(Distilation_caluculation_B, F_listR,Sndmethod_choice,num_len)
+
+            # if upper_B == -1:
+            #     print("【プロトコルB】 ゲートエラー(0.05)の壁が厚く、理論上ディスティレーションは不可能です。")
+            #     memory_B.append(np.nan)
+            # elif upper_B == -2:
+            #     print("【プロトコルB】 適切な上限が見つかりませんでした。")
+            #     memory_B.append(np.nan)
+            # else:
+            #     # 偵察部隊が見つけた完璧な上限(upper_B)を使う！
+            #     mathematic_value2 = brentq(lambda e: Distilation_caluculation_B(e, F_listR,Sndmethod_choice,num_len, mode="brentq"),upper_B,1e20)
+            #     check_diff2 = Distilation_caluculation_B(mathematic_value2, F_listR,Sndmethod_choice,num_len, mode="brentq")
+            #     print(f"【結果B】 End-to-End : T = {mathematic_value2:.10f}  (誤差: {check_diff2:.2e})")
+            #     memory_B.append(mathematic_value2)
                         
                     
                         
 
-                
 
 
 
@@ -1333,46 +1500,45 @@ def main_loop():
 
 
 
+    # --- 統計計算 (numpyを使用) ---
+          mean_prob = np.mean (probabilty_check)
 
-          # --- 統計計算 (numpyを使用) ---
-                mean_prob = np.mean (probabilty_check)
+          tau_list.append(tau)
 
-                tau_list.append(tau)
+          mean_Fiderity = np.mean(Fiderity_times)
+          mean_time = np.mean(execution_times)
+          time_95_percentile = np.percentile(execution_times, 95)
+          edr_95 = 1.0 / time_95_percentile
+          std_dev_time = np.std(execution_times) # 標準偏差
 
-                mean_Fiderity = np.mean(Fiderity_times)
-                mean_time = np.mean(execution_times)
-                time_95_percentile = np.percentile(execution_times, 95)
-                edr_95 = 1.0 / time_95_percentile
-                std_dev_time = np.std(execution_times) # 標準偏差
+          mean_step = np.mean(step_counts)
+          std_dev_step = np.std(step_counts)
 
-                mean_step = np.mean(step_counts)
-                std_dev_step = np.std(step_counts)
+          time_high = mean_time + std_dev_time
+          time_low = mean_time - std_dev_time
 
-                time_high = mean_time + std_dev_time
-                time_low = mean_time - std_dev_time
+          print(mean_time)
 
-                print(mean_time)
-
-                
-                t_err = np.std(execution_times,ddof=1)/np.sqrt(attempts)
+        
+          t_err = np.std(execution_times,ddof=1)/np.sqrt(attempts)
 
 
-                
-
+        
 
 
 
-                
-                mean_list.append(mean_time)
-                x_list.append(sim_params["num_segments"]*sim_params["n_ELs"]*sim_params["l"])
-                y_list.append(mean_time)
-                y_list3.append(edr_95)
-                x_list2.append(sim_params["num_segments"]*sim_params["n_ELs"]*sim_params["l"])
-                y_list2.append(std_dev_step)
-                #y_err_lower.append(err_down)
-                #y_err_upper.append(err_up)
-                prob.append( mean_prob)
-                F_list.append(mean_Fiderity)
+
+        
+          mean_list.append(mean_time)
+          x_list.append(sim_params["num_segments"]*sim_params["n_ELs"]*sim_params["l"])
+          y_list.append(mean_time)
+          y_list3.append(edr_95)
+          x_list2.append(sim_params["num_segments"]*sim_params["n_ELs"]*sim_params["l"])
+          y_list2.append(std_dev_step)
+          #y_err_lower.append(err_down)
+          #y_err_upper.append(err_up)
+          prob.append( mean_prob)
+          F_list.append(mean_Fiderity)
 
 
 
@@ -1392,39 +1558,39 @@ def main_loop():
           # プロッター呼び出し (y_dataは配列にする)
 
           #モンテカルロ法と解析解の比較
-          plt.errorbar(x_data, y_data, y_err, fmt='o', capsize=5,ecolor='red', color='blue', label='EDR with Time-STD Error')
-          plt.plot(x_data, tau_list, color='black', marker='o', linestyle='None', label='LQUOM Analytical')
+        #   plt.errorbar(x_data, y_data, y_err, fmt='o', capsize=5,ecolor='red', color='blue', label='EDR with Time-STD Error')
+        #   plt.plot(x_data, tau_list, color='black', marker='o', linestyle='None', label='LQUOM Analytical')
 
-          plt.grid()
-          plt.legend()
-          plt.show()
+        #   plt.grid()
+        #   plt.legend()
+        #   plt.show()
 
           #フィデリティーによるメモリの比較
-          plt.figure
-          plt.plot(x_data,memory_A,color='red',marker='o',linestyle = 'None',label='Memory_A Vlue')
-          plt.plot(x_data,memory_B,color='blue',marker='o',linestyle = 'None',label='Memory_B Vlue')
+        #   plt.figure
+        #   plt.plot(x_data,memory_A,color='red',marker='o',linestyle = 'None',label='Memory_A Vlue')
+        #   plt.plot(x_data,memory_B,color='blue',marker='o',linestyle = 'None',label='Memory_B Vlue')
 
-          plt.grid()
-          plt.legend()
-          plt.show()
+        #   plt.grid()
+        #   plt.legend()
+        #   plt.show()
           
 
 
-          x_data2 = np.array(x_list2)
-          y_data2 = np.array(y_list2)
+        #   x_data2 = np.array(x_list2)
+        #   y_data2 = np.array(y_list2)
 
-          y_data3 = np.array(y_list3)
+        #   y_data3 = np.array(y_list3)
 
-          dlab2 = ["STDplot"] # ラベル
+          #dlab2 = ["STDplot"] # ラベル
         #   plt.figure() # <--- これで「新しい白紙」を用意する！
         #   plotter(x_data2, y_data2, xlabel="ARC-R distance (km)", dlabels=dlab2)
-          dlab3 = ["EDR95plot"]
+          #dlab3 = ["EDR95plot"]
         #   plt.figure() # <--- これで「新しい白紙」を用意する！
         #   plotter(x_data, y_data3, xlabel="ARC-R distance (km)", dlabels=dlab3)
 
 
           #ヒストグラム
-          print("\nDisplaying Histogram for the last distance setting...")
+          #print("\nDisplaying Histogram for the last distance setting...")
           #plt.figure(figsize=(10, 5))
           #plt.hist(step_counts, bins=20, color='skyblue', edgecolor='black', alpha=0.7)
 
@@ -1487,7 +1653,7 @@ def main_loop():
                 # # F_total への追加も、ループを使わず一発で追加できます
                 # F_total.extend(F_listR)
 
-          for confirmation in range(num_len+1):
+          for confirmation in range(num_len):
             max_value=max(F_listR[confirmation])
             min_value = min(F_listR[confirmation])
             max_Fidelity.append(max_value)       
@@ -1496,94 +1662,33 @@ def main_loop():
             print("----------------------------------------------")
             for number in range(4):
                 #print(f"The individual Fiderity value of {confirmation+1} value {(1-0.05)*(1-0.05)*((1-0.0001))**F_total[confirmation]}") #正しいバージョン
-                print(f"The individual Fiderity value of {confirmation+1} value {(1-0.05)*(1-0.05)*1-(1/2)*(1-np.exp((-F_listR[confirmation][number]*10**(-4))/1))}") #理想的なバージョン
-
+                print(f"The individual Fiderity value of {confirmation+1} value {(1-0.05)*(1-0.05)*(1-(1/2)*(1-np.exp((-F_listR[confirmation][number]*10**(-4))/1)))}") #理想的なバージョン
+            if num_len == 1:
+                Fval = Distilation_caluculation_A(1, F_listR,Sndmethod_choice,num_len,mode= "nomal")
+                print(f"Distilation_value{Fval}")
+                
           if num_len == 0:
             print(f"ディスティレーションした後のフィデリティー：{Distilation_caluculation_A(1, F_listR,Sndmethod_choice,num_len,mode= "nomal")}")
 
-
-                # --- プロトコルA の探索 ---
-        #   upper_A = find_valley_entrance(Distilation_caluculation_A, F_listR)
-
-        #   if upper_A == -1:
-        #     print("【プロトコルA】 ゲートエラー(0.05)の壁が厚く、理論上ディスティレーションは不可能です。")
-        #   elif upper_A == -2:
-        #     print("【プロトコルA】 適切な上限が見つかりませんでした。")
-        #   else:
-        #     # 偵察部隊が見つけた完璧な上限(upper_A)を使う！
-        #     mathematic_value1 = brentq(lambda e: Distilation_caluculation_A(e, F_listR, mode="brentq"), upper_A ,1e20)
-        #     check_diff1 = Distilation_caluculation_A(mathematic_value1, F_listR, mode="brentq")
-        #     print(f"【結果A】 Hop-by-Hop : T = {mathematic_value1:.10f}  (誤差: {check_diff1:.2e})")
-
-        # # --- プロトコルB の探索 ---
-        #   upper_B = find_valley_entrance(Distilation_caluculation_B, F_listR)
-
-        #   if upper_B == -1:
-        #     print("【プロトコルB】 ゲートエラー(0.05)の壁が厚く、理論上ディスティレーションは不可能です。")
-        #   elif upper_B == -2:
-        #     print("【プロトコルB】 適切な上限が見つかりませんでした。")
-        #   else:
-        #     # 偵察部隊が見つけた完璧な上限(upper_B)を使う！
-        #     mathematic_value2 = brentq(lambda e: Distilation_caluculation_B(e, F_listR, mode="brentq"),upper_B,1e20)
-        #     check_diff2 = Distilation_caluculation_B(mathematic_value2, F_listR, mode="brentq")
-        #     print(f"【結果B】 End-to-End : T = {mathematic_value2:.10f}  (誤差: {check_diff2:.2e})")
-
-          
-
-          
-
-          
-
-                
-
-            
-                
-
-        #   F4_threshold = (1 - 0.05) * (1 - 0.05) * ((1 - mathematic_value))**min_value #ここで、数値解析を行い閾値を定義
-        #   Fiderity = (1-0.05)*(1-0.05)*((1-mathematic_value))**max_value
-        #   Fiderity2 = (1-0.05)*(1-0.05)*((1-mathematic_value))**min_value
-
-
-
-        #   print(f"基準となる初期フィデリティ (F4相当): {F4_threshold:.6f}")
-        #   print("-" * 50)
+      
 
           # ---------------------------------------------------------
           # 2. ループ探索
           # ---------------------------------------------------------
           # 0.00001 から 0.0001 まで 0.00001 刻みで変化させる
-          epsilon_values =  np.logspace(-6, 0, 50)
-
-          resultsA = []
-          resultsB = []
-          crossed_threshold = False
-
-          print(f"{'e (epsilon)':<12} | {'Distilation Value':<20} | {'判定 (vs F4)'}")
-          print("-" * 50)
-
-          for e in epsilon_values:
-              # --- 計算ロジック (提供された式) ---
-              # x1, y1, z1, q1 の計算 (理想の値)
-              Distilation_value1=Distilation_caluculation_A(e, F_listR,Sndmethod_choice,num_len,mode= "nomal")
-              Distilation_value2=Distilation_caluculation_B(e, F_listR,Sndmethod_choice,num_len,mode= "nomal")
-
-              # 結果の保存
-              resultsA.append(Distilation_value1)
-              resultsB.append(Distilation_value2)
-
-        
-
-          
+          epsilon_values =  np.arange(1, e + 1, 1)
 
           #プロッター関数を使った場合これで、一つのグラフにまとめたいというか、コードの意味の深層理解をしたい所
           # plt.figure() # <--- これで「新しい白紙」を用意する！
           # plotter(epsilon_values, results, xlabel="Decoherence Value", dlabels="Distillation Result (F')")
           # plotter(epsilon_values, threshold_line, xlabel="Decoherence Value", dlabels="Threshold ")
 
-          plt.plot(epsilon_values, resultsA, label="Distillation Result individualy", color="blue")
+          plt.plot(epsilon_values, resultsA, marker='o', linestyle='None', label="Distillation Result Hop by Hop", color="blue")
 
           # 2本目：閾値のライン（比較しやすいように linestyle="--" で点線にします）
-          plt.plot(epsilon_values, resultsB, label="Distillation Result totally", color="red")
+          plt.plot(epsilon_values, resultsB, marker='o', linestyle='None', label="Distillation Result End to End", color="red")
+
+          plt.plot(epsilon_values, resultsC, marker='o', linestyle='None', label="Befor Distillation", color="black")
 
           # ---------------------------------------------------------
           # グラフの見た目を整える（ラベルや凡例）
