@@ -1144,7 +1144,7 @@ def Distilation_caluculation_B(e,F_total,Sndmethod_choice,num_len,mode):
   
   F_index = []
 
-  #QutipをENd to Endに代入する所から
+  
   if Sndmethod_choice == 'B':
     for count,perm in enumerate(itertools.permutations(base_indices,4)):
         F_array = []
@@ -1184,20 +1184,92 @@ def Distilation_caluculation_B(e,F_total,Sndmethod_choice,num_len,mode):
     
             #print(f"デバック{next_index[0]}")
             # x2, y2, z2, q2 の計算
-            x2 = (1 - next_index[0]) / 3
-            y2 = (1 - next_index[1]) / 3
-            z2 = (1 - next_index[2]) / 3
-            q2 = (1 - next_index[3]) / 3
+            noise_coeff = (1 - next_index[0]) / 3
+            noise_coeff2 = (1 - next_index[1]) / 3
+            noise_coeff3 = (1 - next_index[2]) / 3
+            noise_coeff4 = (1 - next_index[3]) / 3
 
-            # p1, p2, p3, p4 の計算
-            p1 = (next_index[1]*x2 + next_index[0]*y2)*(next_index[3]*z2 + next_index[2]*q2) + 4*x2*y2*z2*q2
-            p2 = 2*x2*y2*(next_index[3]*z2 + next_index[2]*q2) + 2*z2*q2*(next_index[1]*x2 + next_index[0]*y2)
-            p3 = (next_index[0]*next_index[1] + x2*y2)*(next_index[2]*next_index[3] + z2*q2) + 4*x2*y2*z2*q2
-
-            # 元のコードの記述通り (x1*y1 + x1*y2)
-            p4 = 2*x2*y2*(next_index[2]*next_index[3] + z2*q2) + 2*z2*q2*(next_index[0]*next_index[1] + next_index[0]*y2)
             
-            Distilation_value = p3 / (p1 + p2 + p3 + p4)
+            rho_1 = (next_index[0] * qt.ket2dm(psi_minus) +
+            noise_coeff * qt.ket2dm(psi_plus) +
+            noise_coeff * qt.ket2dm(phi_plus) +
+            noise_coeff * qt.ket2dm(phi_minus))
+
+            rho_2 = (next_index[1] * qt.ket2dm(psi_minus) +
+            noise_coeff2 * qt.ket2dm(psi_plus) +
+            noise_coeff2 * qt.ket2dm(phi_plus) +
+            noise_coeff2 * qt.ket2dm(phi_minus))
+
+            rho_3 = (next_index[2] * qt.ket2dm(psi_minus) +
+            noise_coeff3 * qt.ket2dm(psi_plus) +
+            noise_coeff3 * qt.ket2dm(phi_plus) +
+            noise_coeff3 * qt.ket2dm(phi_minus))
+
+            rho_4 = (next_index[3] * qt.ket2dm(psi_minus) +
+            noise_coeff4 * qt.ket2dm(psi_plus) +
+            noise_coeff4 * qt.ket2dm(phi_plus) +
+            noise_coeff4 * qt.ket2dm(phi_minus))
+
+            
+            rho_total1 = qt.tensor(rho_1, rho_2)
+            rho_total2 = qt.tensor(rho_3, rho_4)
+
+
+            H_matrix = 1 / np.sqrt(2) * qt.Qobj([[1, 1], [1, -1]])
+            H_total = qt.tensor(H_matrix, H_matrix, H_matrix, H_matrix)
+
+            
+            try:
+                CNOT_Alice = cnot(N=4, control=0, target=2) # qt.cnot ではなく cnot を使用
+                CNOT_Bob   = cnot(N=4, control=1, target=3) # qt.cnot ではなく cnot を使用
+            except AttributeError:
+                print("【重要】CNOTが見つからないため、手動定義に切り替えます...")
+                # 手動でCNOTを作る（力技）
+                # 0->2 のCNOTなどを作るのは大変なので、qutip-qipのインストールを推奨するメッセージを出します
+                raise ImportError("QuTiP v5をお使いのようです。CNOTを使うには '!pip install qutip-qip' を実行してから、 'from qutip_qip.operations import cnot' をコードの先頭に追加してください。")
+
+            U_cnot = CNOT_Alice * CNOT_Bob
+            rho_after_cnot1 = U_cnot * rho_total1 * U_cnot.dag()
+            rho_after_cnot2 = U_cnot * rho_total2 * U_cnot.dag()
+
+
+
+            # ---------------------------------------------------------
+            # 4. 測定と事後選択
+            # ---------------------------------------------------------
+            P_00 = qt.tensor(qt.qeye(2), qt.qeye(2), qt.ket2dm(qt.tensor(q0, q0)))
+            P_11 = qt.tensor(qt.qeye(2), qt.qeye(2), qt.ket2dm(qt.tensor(q1, q1)))
+            P_success = P_00 + P_11
+
+
+            rho_unnormalized1 = P_success * rho_after_cnot1 * P_success.dag()
+            rho_unnormalized2 = P_success * rho_after_cnot2 * P_success.dag()
+
+
+            #テンソルを切り離す
+            rho_p1d = rho_unnormalized1.ptrace([0, 1])
+            rho_p3d = rho_unnormalized2.ptrace([0, 1])
+
+            #σzのディスティレーション
+            rho_total3 = qt.tensor(rho_p1d, rho_p3d)
+
+            rho_total3 =  H_total * rho_total3 * H_total.dag()
+
+            # rho_p1d = H_total * rho_p1d * H_total.dag()
+            # rho_p3d = H_total * rho_p3d * H_total.dag()
+            rho_after_cnot3 = U_cnot * rho_total3 * U_cnot.dag()
+            rho_unnormalized3 = P_success * rho_after_cnot3 * P_success.dag()
+
+            #成功確率のトレース
+            prob = rho_unnormalized3.tr()
+
+            #規格化
+            rho_unnormalized3= rho_unnormalized3/prob
+
+            #テンソルを切り離す
+            rho_p1dd = rho_unnormalized3.ptrace([0, 1])
+
+            Distilation_value = qt.expect(qt.ket2dm(phi_plus), rho_p1dd )
 
             if Distilation_value > best_fidelity:
                 best_fidelity = Distilation_value
@@ -1225,20 +1297,91 @@ def Distilation_caluculation_B(e,F_total,Sndmethod_choice,num_len,mode):
             F_mmx = max(now_index)     
     
         # x2, y2, z2, q2 の計算
-        x2 = (1 - now_index[0]) / 3
-        y2 = (1 - now_index[1]) / 3
-        z2 = (1 - now_index[2]) / 3
-        q2 = (1 - now_index[3]) / 3
+        noise_coeff = (1 - now_index[0]) / 3
+        noise_coeff2 = (1 - now_index[1]) / 3
+        noise_coeff3 = (1 - now_index[2]) / 3
+        noise_coeff4 = (1 - now_index[3]) / 3
 
-        # p1, p2, p3, p4 の計算
-        p1 = (now_index[1]*x2 + now_index[0]*y2)*(now_index[3]*z2 + now_index[2]*q2) + 4*x2*y2*z2*q2
-        p2 = 2*x2*y2*(now_index[3]*z2 + now_index[2]*q2) + 2*z2*q2*(now_index[1]*x2 + now_index[0]*y2)
-        p3 = (now_index[0]*now_index[1] + x2*y2)*(now_index[2]*now_index[3] + z2*q2) + 4*x2*y2*z2*q2
+        rho_1 = (next_index[0] * qt.ket2dm(psi_minus) +
+        noise_coeff * qt.ket2dm(psi_plus) +
+        noise_coeff * qt.ket2dm(phi_plus) +
+        noise_coeff * qt.ket2dm(phi_minus))
 
-        # 元のコードの記述通り (x1*y1 + x1*y2)
-        p4 = 2*x2*y2*(now_index[2]*now_index[3] + z2*q2) + 2*z2*q2*(now_index[0]*now_index[1] + now_index[0]*y2)
+        rho_2 = (next_index[1] * qt.ket2dm(psi_minus) +
+        noise_coeff2 * qt.ket2dm(psi_plus) +
+        noise_coeff2 * qt.ket2dm(phi_plus) +
+        noise_coeff2 * qt.ket2dm(phi_minus))
+
+        rho_3 = (next_index[2] * qt.ket2dm(psi_minus) +
+        noise_coeff3 * qt.ket2dm(psi_plus) +
+        noise_coeff3 * qt.ket2dm(phi_plus) +
+        noise_coeff3 * qt.ket2dm(phi_minus))
+
+        rho_4 = (next_index[3] * qt.ket2dm(psi_minus) +
+        noise_coeff4 * qt.ket2dm(psi_plus) +
+        noise_coeff4 * qt.ket2dm(phi_plus) +
+        noise_coeff4 * qt.ket2dm(phi_minus))
+
         
-        Distilation_value2 = p3 / (p1 + p2 + p3 + p4)
+        rho_total1 = qt.tensor(rho_1, rho_2)
+        rho_total2 = qt.tensor(rho_3, rho_4)
+
+
+        H_matrix = 1 / np.sqrt(2) * qt.Qobj([[1, 1], [1, -1]])
+        H_total = qt.tensor(H_matrix, H_matrix, H_matrix, H_matrix)
+
+        
+        try:
+            CNOT_Alice = cnot(N=4, control=0, target=2) # qt.cnot ではなく cnot を使用
+            CNOT_Bob   = cnot(N=4, control=1, target=3) # qt.cnot ではなく cnot を使用
+        except AttributeError:
+            print("【重要】CNOTが見つからないため、手動定義に切り替えます...")
+            # 手動でCNOTを作る（力技）
+            # 0->2 のCNOTなどを作るのは大変なので、qutip-qipのインストールを推奨するメッセージを出します
+            raise ImportError("QuTiP v5をお使いのようです。CNOTを使うには '!pip install qutip-qip' を実行してから、 'from qutip_qip.operations import cnot' をコードの先頭に追加してください。")
+
+        U_cnot = CNOT_Alice * CNOT_Bob
+        rho_after_cnot1 = U_cnot * rho_total1 * U_cnot.dag()
+        rho_after_cnot2 = U_cnot * rho_total2 * U_cnot.dag()
+
+
+
+        # ---------------------------------------------------------
+        # 4. 測定と事後選択
+        # ---------------------------------------------------------
+        P_00 = qt.tensor(qt.qeye(2), qt.qeye(2), qt.ket2dm(qt.tensor(q0, q0)))
+        P_11 = qt.tensor(qt.qeye(2), qt.qeye(2), qt.ket2dm(qt.tensor(q1, q1)))
+        P_success = P_00 + P_11
+
+
+        rho_unnormalized1 = P_success * rho_after_cnot1 * P_success.dag()
+        rho_unnormalized2 = P_success * rho_after_cnot2 * P_success.dag()
+
+
+        #テンソルを切り離す
+        rho_p1d = rho_unnormalized1.ptrace([0, 1])
+        rho_p3d = rho_unnormalized2.ptrace([0, 1])
+
+        #σzのディスティレーション
+        rho_total3 = qt.tensor(rho_p1d, rho_p3d)
+
+        rho_total3 =  H_total * rho_total3 * H_total.dag()
+
+        # rho_p1d = H_total * rho_p1d * H_total.dag()
+        # rho_p3d = H_total * rho_p3d * H_total.dag()
+        rho_after_cnot3 = U_cnot * rho_total3 * U_cnot.dag()
+        rho_unnormalized3 = P_success * rho_after_cnot3 * P_success.dag()
+
+        #成功確率のトレース
+        prob = rho_unnormalized3.tr()
+
+        #規格化
+        rho_unnormalized3= rho_unnormalized3/prob
+
+        #テンソルを切り離す
+        rho_p1dd = rho_unnormalized3.ptrace([0, 1])
+
+        Distilation_value2 = qt.expect(qt.ket2dm(phi_plus), rho_p1dd )
 
         if Distilation_value2 > b_f:
                 b_f = Distilation_value2
