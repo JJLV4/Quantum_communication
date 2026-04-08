@@ -1548,6 +1548,7 @@ def main_loop():
           resultsA = []
           resultsB = []
           resultsC = []
+          step_rouds = 0
           
 
 
@@ -1611,11 +1612,10 @@ def main_loop():
             
             
 
+            for attempt in range(attempts):
+               #4 denotes first round of distillation.
 
-            for forth in range(4):    #4 denotes first round of distillation.
-
-
-                for attempt in range(attempts):
+                for forth in range(4): 
                     # 【重要】毎回セグメントを新品に作り直す (リセット)
 
                     # print(f"the number of n:{sim_params["n_ELs"]:.5f}") # Removed excessive print
@@ -1631,9 +1631,24 @@ def main_loop():
                     while True:
                         step += 1
                         all_complete = run_simulation(segments, sim_params,method_choice,e)
+                        
 
+                        if all_complete and i != 3:
 
-                        if all_complete:
+                            step_rouds +=step
+
+                            if Sndmethod_choice == "B":
+                                current_counts = [seg.storage_count + 1 for seg in segments]#各のストレージカウントを個々で蓄える
+
+                                for i in range(num_segments):
+                                    Fidelity_counts_per_seg[i].append(current_counts[i])
+
+                            break        
+
+                        elif all_complete and i == 3:
+                            
+                            step_rouds +=step
+
                             # ---------------------------------------------------
                             # 1. 光を出していた時間 (Generation Time)
                             # ---------------------------------------------------
@@ -1654,7 +1669,7 @@ def main_loop():
 
 
 
-                            t_latency_total =param_dict.get("t_CNOT") + param_dict.get("t_QR")
+                            t_latency_total =4*(param_dict.get("t_CNOT") + param_dict.get("t_QR"))
 
                             # Sum the golobal_count from all segments
                             total_golobal_count = sum(seg.golobal_count for seg in segments)
@@ -1694,10 +1709,19 @@ def main_loop():
                                 probabilty_check.append(0)
 
                             step_counts.append(step)
-                            break
+
+                            #シュミレーションの処理
+                            if #Qutipの補集合確率をモンテカルロしてOKなら
+                                break
+                            
+                            else:
+                                #もう一度simulationやらせる処理
+
+
+
 
                         # 無限ループ防止 (適当な上限)
-                        if step > 1000000000:
+                        if step > 100000000000000:
                             step_counts.append(step) # 失敗扱い
                             break
 
@@ -1881,35 +1905,16 @@ def main_loop():
           # プロッター呼び出し (y_dataは配列にする)
 
           #モンテカルロ法と解析解の比較
-        #   plt.errorbar(x_data, y_data, y_err, fmt='o', capsize=5,ecolor='red', color='blue', label='EDR with Time-STD Error')
-        #   plt.plot(x_data, tau_list, color='black', marker='o', linestyle='None', label='LQUOM Analytical')
+          plt.errorbar(x_data, y_data, y_err, fmt='o', capsize=5,ecolor='red', color='blue', label='EDR with Time-STD Error')
+          plt.plot(x_data, tau_list, color='black', marker='o', linestyle='None', label='LQUOM Analytical')
 
-        #   plt.grid()
-        #   plt.legend()
-        #   plt.show()
+          plt.grid()
+          plt.legend()
+          plt.show()
 
-          #フィデリティーによるメモリの比較
-        #   plt.figure
-        #   plt.plot(x_data,memory_A,color='red',marker='o',linestyle = 'None',label='Memory_A Vlue')
-        #   plt.plot(x_data,memory_B,color='blue',marker='o',linestyle = 'None',label='Memory_B Vlue')
-
-        #   plt.grid()
-        #   plt.legend()
-        #   plt.show()
+        
           
 
-
-        #   x_data2 = np.array(x_list2)
-        #   y_data2 = np.array(y_list2)
-
-        #   y_data3 = np.array(y_list3)
-
-          #dlab2 = ["STDplot"] # ラベル
-        #   plt.figure() # <--- これで「新しい白紙」を用意する！
-        #   plotter(x_data2, y_data2, xlabel="ARC-R distance (km)", dlabels=dlab2)
-          #dlab3 = ["EDR95plot"]
-        #   plt.figure() # <--- これで「新しい白紙」を用意する！
-        #   plotter(x_data, y_data3, xlabel="ARC-R distance (km)", dlabels=dlab3)
 
 
           #ヒストグラム
@@ -1917,16 +1922,7 @@ def main_loop():
           #plt.figure(figsize=(10, 5))
           #plt.hist(step_counts, bins=20, color='skyblue', edgecolor='black', alpha=0.7)
 
-          # 平均値のライン
-          #plt.axvline(mean_step, color='red', linestyle='dashed', linewidth=1.5, label=f'Mean: {mean_step:.1f}')
-
-        #   plt.title(f"Distribution of Steps to Success (Last Trial)")
-        #   plt.xlabel("Steps")
-        #   plt.ylabel("Frequency")
-        #   plt.legend()
-        #   plt.grid(axis='y', alpha=0.5)
-          #plt.show()
-          #Debag
+         
           if method_choice == "A":
             print(f"自分の値{mean_list[0]}")
             print(f"理想値{(1/(prob_el*prob_qr**2))*param_dict['t_AFC']}")
