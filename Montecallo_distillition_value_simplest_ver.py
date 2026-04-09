@@ -1106,6 +1106,8 @@ def Distilation_caluculation_A(e,F_total,Sndmethod_choice,num_len,mode):
 
   if mode =="brentq":
     return Total_Distilation_Fidelity - F_max
+  elif mode =="prob":
+    prob*(1/2)**4 #ベルスワッピングの成功確率を1/2とした場合  
   else:
     return Total_Distilation_Fidelity
 
@@ -1403,6 +1405,8 @@ def Distilation_caluculation_B(e,F_total,Sndmethod_choice,num_len,mode):
 
   if mode =="brentq":
     return Total_Distilation_Fidelity -  F_max
+  elif mode =="prob":
+    prob*(1/2)**4 #ベルスワッピングの成功確率を1/2とした場合 
   else:
     return Total_Distilation_Fidelity  
 
@@ -1573,8 +1577,9 @@ def main_loop():
           # 結果を保存するリスト
 
           start_time = time.time()
-          
-          for e in range(1,3):
+
+          while文でディスティレーションが失敗した時の埋め合わせを行う！Whileで回して最後にDhistillationが成功すれば、その時のstep_rounds基準でやれば良いのだが、#while true
+          for e in range(1,2):
             # --- 試行ループ ---
             #for num_len in range(vals): 単複数の値を見る時のfor文
             num_len =vals        #一つのみの値を見る時のnum_len
@@ -1603,11 +1608,11 @@ def main_loop():
                 F_listR = []
                 print("シングル")
             else:
-                F_listR = [ [] for _ in range(num_segments)]#ラウンドとして、フィデリティーカウントの平均値を蓄える
+                F_listR =  [ [] for _ in range(num_segments)]#ラウンドとして、フィデリティーカウントの平均値を蓄える
                 print("コンプレックス")
 
             #Fiderity_count = sum(seg.storage_count for seg in segments)+num_len #num_lenはELのメモリの分のカウントこれは、Nを増やす方式にしか対応していないことに注意
-            Fidelity_counts_per_seg = [ [] for _ in range(num_segments) ]#配列を用意！！
+            Fidelity_counts_per_seg = [ [[] for _ in range(4)] for _ in range(num_segments) ]#配列を用意！！
             mean_Fiderity = []
             
             
@@ -1621,7 +1626,7 @@ def main_loop():
                     # print(f"the number of n:{sim_params["n_ELs"]:.5f}") # Removed excessive print
                     # print(f"N:{sim_params["num_segments"]:.5f}") # Removed excessive print
 
-                    segments = [RepeaterSegment(i, sim_params["n_ELs"]) for i in range(sim_params["num_segments"]) ]
+                    segments = [RepeaterSegment(i, sim_params["n_ELs"]) for i in range(sim_params["num_segments"]) ] #セグメントの初期化
                     step = 0
 
 
@@ -1633,7 +1638,7 @@ def main_loop():
                         all_complete = run_simulation(segments, sim_params,method_choice,e)
                         
 
-                        if all_complete and i != 3:
+                        if all_complete and forth != 3:
 
                             step_rouds +=step
 
@@ -1641,11 +1646,11 @@ def main_loop():
                                 current_counts = [seg.storage_count + 1 for seg in segments]#各のストレージカウントを個々で蓄える
 
                                 for i in range(num_segments):
-                                    Fidelity_counts_per_seg[i].append(current_counts[i])
+                                    Fidelity_counts_per_seg[i][forth].append(current_counts[i])
 
                             break        
 
-                        elif all_complete and i == 3:
+                        elif all_complete and forth == 3:
                             
                             step_rouds +=step
 
@@ -1657,13 +1662,13 @@ def main_loop():
                                 current_counts = [seg.storage_count + 1 for seg in segments]#各のストレージカウントを個々で蓄える
 
                                 for i in range(num_segments):
-                                    Fidelity_counts_per_seg[i].append(current_counts[i])
+                                    Fidelity_counts_per_seg[i][forth].append(current_counts[i])
 
 
                             if method_choice == "A":
-                                t_generation = (step) * param_dict.get("t_AFC")#＋1はデッドタイム
+                                t_generation = (step_rouds) * param_dict.get("t_AFC")#＋1はデッドタイム
                             else:
-                                t_generation = ((step) * param_dict.get("t_AFC")) / param_dict.get("separate")#＋1はデッドタイム
+                                t_generation = ((step_rouds) * param_dict.get("t_AFC")) / param_dict.get("separate")#＋1はデッドタイム
 
 
 
@@ -1671,9 +1676,7 @@ def main_loop():
 
                             t_latency_total =4*(param_dict.get("t_CNOT") + param_dict.get("t_QR"))
 
-                            # Sum the golobal_count from all segments
-                            total_golobal_count = sum(seg.golobal_count for seg in segments)
-
+                          
                             t_elapsed = t_generation + t_latency_total #* total_golobal_count
                             # print(total_golobal_count) # Removed excessive print
 
@@ -1710,12 +1713,12 @@ def main_loop():
 
                             step_counts.append(step)
 
-                            #シュミレーションの処理
-                            if #Qutipの補集合確率をモンテカルロしてOKなら
-                                break
+                            # #シュミレーションの処理
+                            # if check_success(Distilation_caluculation_A(e,F_list,Sndmethod_choice,num_len,mode=prob)):#F_listを定義してからでないと行けない
+                            #     break
                             
-                            else:
-                                #もう一度simulationやらせる処理
+                            # else:
+                            #     pass#もう一度simulationやらせる処理
 
 
 
@@ -1738,10 +1741,12 @@ def main_loop():
                 step_R.append(mean_step)
 
                 if Sndmethod_choice == "B":
+
                     for i in range(num_segments):
+                        for forth in range(4):
                         
-                        #mean_Fiderity[i].append(np.mean(Fidelity_counts_per_seg[i]))#intendをここにしないと,attemptsと、for(4)に入らない
-                        F_listR[i].append(np.mean(Fidelity_counts_per_seg[i]))
+                            #mean_Fiderity[i].append(np.mean(Fidelity_counts_per_seg[i]))#intendをここにしないと,attemptsと、for(4)に入らない
+                            F_listR[i].append(np.mean(Fidelity_counts_per_seg[i][forth]))
 
                 else:
                     F_listR.append(1)        
@@ -1751,7 +1756,7 @@ def main_loop():
 
 
         
-            print(F_listR)#デバック
+            #print(F_listR)#デバック
             if Sndmethod_choice == "B":
                         # F_listR[0] ～ [2] までを処理したいので range(3)
                 for k in range(num_len):
@@ -1765,7 +1770,16 @@ def main_loop():
             else:
                 for i in range(3):    
 
-                        F_listR[i] += sum(step_R[i+1 : 4])        
+                        F_listR[i] += sum(step_R[i+1 : 4])     
+
+
+            # --- ディスティレーションによる失敗確率の定義　---
+             
+            if check_success(Distilation_caluculation_A(e,F_listR,Sndmethod_choice,num_len,mode="prob")):#F_listを定義してからでないと行けない
+                break
+            
+            else:
+                pass#もう一度simulationやらせる処理                
 
         
     # --- 計算ロジック (提供された式) ---
