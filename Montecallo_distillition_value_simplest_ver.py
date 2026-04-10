@@ -1625,8 +1625,11 @@ def main_loop():
               for attempt in range(attempts):
                #4 denotes first round of distillation.
                   step_rouds = 0
-                  fail = 0
+                  fail = []
+                  fail.append(0)
+                  fail.append(0)
                   forth =0
+                  #print("debug")
                   if Sndmethod_choice =="A":
                     F_list_eachattempt = []
                    
@@ -1638,15 +1641,16 @@ def main_loop():
 
                   while forth < 4: 
                     # 【重要】毎回セグメントを新品に作り直す (リセット)
-                      print("oooo")
-                      if fail != 0:
+                      #print("oooo")
+                      if fail[0] != 0:
                         F_list_eachattempt =  [ [] for _ in range(num_segments)]
                         step_rouds = 0
                         for k in range(4):
                           step_counts[k].pop()
-                          print(f"dd{k}")
+                          #print(f"dd{k}")
                           for i in range(num_segments):
                               Fidelity_counts_per_seg[i][k].pop()
+                        fail[0] = 0      
                             
 
 
@@ -1656,7 +1660,7 @@ def main_loop():
 
                       segments = [RepeaterSegment(i, sim_params["n_ELs"]) for i in range(sim_params["num_segments"]) ] #セグメントの初期化
                       step = 0
-                      print("ssss")
+                      #print("ssss")
 
 
 
@@ -1665,7 +1669,7 @@ def main_loop():
                       while True:
                           step += 1
                           all_complete = run_simulation(segments, sim_params,method_choice,e)
-                          print("llll")
+                          
                         
 
                           if all_complete and forth != 3:
@@ -1724,7 +1728,7 @@ def main_loop():
 
 
                             #Fiderity_times.append(Fiderity_count)
-                              if fail == 0:
+                              if fail[1] == 0:
                                 execution_times.append(t_elapsed)
                               else:
                                 execution_times[attempt] += t_elapsed    
@@ -1779,8 +1783,9 @@ def main_loop():
                                     # step_R の [i+1] から [3] までを合計して足す
                                     # スライスは「最後の数字を含まない」ので、3まで入れたければ 4 と書く
                                     for i in range(3):    
-                
-                                        F_list_eachattempt[k][i] += sum(step_counts[i+1 : 4][attempt])
+                                        #print(step_counts[i])
+                                        #F_list_eachattempt[k][i] += sum(step_counts[i+1 : 4][attempt])
+                                        F_list_eachattempt[k][i] += sum(step_counts[j][attempt] for j in range(i+1, 4))
                 
                               else:
 
@@ -1796,12 +1801,14 @@ def main_loop():
                               Disproba = Distilation_caluculation_A(e,F_list_eachattempt,Sndmethod_choice,num_len,mode="prob")
                               if check_success(Disproba):#F_listを定義してからでないと行けない
                                   forth +=1
-                                  print("成功{forth}")
+                                  print(f"成功{forth}")
+                                  
                                   
                                   break
                             
                               else:
-                                  fail +=1
+                                  fail[0] +=1
+                                  fail[1] += 1
                                   forth = 0
                                   print(f"失敗{fail}回目")
                                   break#もう一度simulationやらせる処理 

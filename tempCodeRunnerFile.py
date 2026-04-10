@@ -1,0 +1,1 @@
+sum(step_counts[i+1 : 4][attempt])
