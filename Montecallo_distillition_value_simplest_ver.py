@@ -1107,7 +1107,9 @@ def Distilation_caluculation_A(e,F_total,Sndmethod_choice,num_len,mode):
   if mode =="brentq":
     return Total_Distilation_Fidelity - F_max
   elif mode =="prob":
-    prob*(1/2)**4 #ベルスワッピングの成功確率を1/2とした場合  
+    print(f"Distillation{prob}")
+    print(f"Hop by Hop {prob**(num_len) * (1/2)**(num_len-1)}")
+    return prob**(num_len) * (1/2)**(num_len-1) #ベルスワッピングの成功確率を1/2とした場合  
   else:
     return Total_Distilation_Fidelity
 
@@ -1406,7 +1408,8 @@ def Distilation_caluculation_B(e,F_total,Sndmethod_choice,num_len,mode):
   if mode =="brentq":
     return Total_Distilation_Fidelity -  F_max
   elif mode =="prob":
-    prob*(1/2)**4 #ベルスワッピングの成功確率を1/2とした場合 
+    print(f"END TO END {prob * (1/16)**(num_len)}")
+    return prob * (1/16)**(num_len) #ベルスワッピングの成功確率を1/2とした場合 
   else:
     return Total_Distilation_Fidelity  
 
@@ -1541,7 +1544,6 @@ def main_loop():
           y_err_upper = []  # エラーバー上側
           F_list = [] #フィデリティーのカウント
           F_total = []#stepを加算したフィデリティーのカウント
-          step_R = []#ラウンド毎のステップ数
           threshold_value = []#デコヒーレンスの閾値をまとめる配列
           max_Fidelity = []#各セグメントごとのフィデリティーカウントの最大値をまとめる        
           min_Fidelity = []#各セグメントごとのフィデリティーカウントの最小値をまとめる
@@ -1552,7 +1554,7 @@ def main_loop():
           resultsA = []
           resultsB = []
           resultsC = []
-          step_rouds = 0
+          mean_ap = []
           
 
 
@@ -1578,106 +1580,142 @@ def main_loop():
 
           start_time = time.time()
 
-          while文でディスティレーションが失敗した時の埋め合わせを行う！Whileで回して最後にDhistillationが成功すれば、その時のstep_rounds基準でやれば良いのだが、#while true
+          #while文でディスティレーションが失敗した時の埋め合わせを行う！Whileで回して最後にDhistillationが成功すれば、その時のstep_rounds基準でやれば良いのだが、#while true
           for e in range(1,2):
+            while True:  
             # --- 試行ループ ---
             #for num_len in range(vals): 単複数の値を見る時のfor文
-            num_len =vals        #一つのみの値を見る時のnum_len
+              num_len =vals        #一つのみの値を見る時のnum_len
 
-            execution_times = [] # かかった時間 (ステップ数 * 単位時間)
-            step_counts = []     # かかったステップ数
-            probabilty_check = [] #確率でチェック
-            Fiderity_times = []
+              step_R = []#ラウンド毎のステップ数
+              execution_times = [] # かかった時間 (ステップ数 * 単位時間)
+              step_counts = [[] for _ in range(4)]     # かかったステップ数
+              probabilty_check = [] #確率でチェック
+              Fiderity_times = []
+              
 
-            if Sndmethod_choice == "A": # n (EL数) を増やす
-                sim_params["n_ELs"] = num_len 
+              if Sndmethod_choice == "A": # n (EL数) を増やす
+                  sim_params["n_ELs"] = num_len 
                 #sim_params["n_ELs"] = num_len +1 このコードを消した際の不具合がないかを調べる
 
                 
             # N (セグメント数) は固定
-            else:
-                sim_params["num_segments"] = num_len 
+              else:
+                  sim_params["num_segments"] = num_len 
                 #sim_params["num_segments"] = num_len +1 このコードを消した際の不具合がないかを調べる
 
                 
             
-            num_segments = num_len 
-            print(num_segments)#debug
+              num_segments = num_len 
+              print(num_segments)#debug
 
-            if Sndmethod_choice =="A":
-                F_listR = []
-                print("シングル")
-            else:
-                F_listR =  [ [] for _ in range(num_segments)]#ラウンドとして、フィデリティーカウントの平均値を蓄える
-                print("コンプレックス")
+              if Sndmethod_choice =="A":
+                  F_listR = []
+                  print("シングル")
+              else:
+                  F_listR =  [ [] for _ in range(num_segments)]#ラウンドとして、フィデリティーカウントの平均値を蓄える
+                  print("コンプレックス")
 
             #Fiderity_count = sum(seg.storage_count for seg in segments)+num_len #num_lenはELのメモリの分のカウントこれは、Nを増やす方式にしか対応していないことに注意
-            Fidelity_counts_per_seg = [ [[] for _ in range(4)] for _ in range(num_segments) ]#配列を用意！！
-            mean_Fiderity = []
+              Fidelity_counts_per_seg = [ [[] for _ in range(4)] for _ in range(num_segments) ]#配列を用意！！
+              mean_Fiderity = []
             
             
 
-            for attempt in range(attempts):
+              for attempt in range(attempts):
                #4 denotes first round of distillation.
+                  step_rouds = 0
+                  fail = 0
+                  forth =0
+                  if Sndmethod_choice =="A":
+                    F_list_eachattempt = []
+                   
+                  else:
+                    F_list_eachattempt =  [ [] for _ in range(num_segments)]#ラウンドとして、フィデリティーカウントの平均値を蓄える
+                  
 
-                for forth in range(4): 
+                                 
+
+                  while forth < 4: 
                     # 【重要】毎回セグメントを新品に作り直す (リセット)
+                      print("oooo")
+                      if fail != 0:
+                        F_list_eachattempt =  [ [] for _ in range(num_segments)]
+                        step_rouds = 0
+                        for k in range(4):
+                          step_counts[k].pop()
+                          print(f"dd{k}")
+                          for i in range(num_segments):
+                              Fidelity_counts_per_seg[i][k].pop()
+                            
 
-                    # print(f"the number of n:{sim_params["n_ELs"]:.5f}") # Removed excessive print
-                    # print(f"N:{sim_params["num_segments"]:.5f}") # Removed excessive print
 
-                    segments = [RepeaterSegment(i, sim_params["n_ELs"]) for i in range(sim_params["num_segments"]) ] #セグメントの初期化
-                    step = 0
+
+                      # print(f"the number of n:{sim_params["n_ELs"]:.5f}") # Removed excessive print
+                      # print(f"N:{sim_params["num_segments"]:.5f}") # Removed excessive print
+
+                      segments = [RepeaterSegment(i, sim_params["n_ELs"]) for i in range(sim_params["num_segments"]) ] #セグメントの初期化
+                      step = 0
+                      print("ssss")
 
 
 
                         # 1回のシミュレーション
 
-                    while True:
-                        step += 1
-                        all_complete = run_simulation(segments, sim_params,method_choice,e)
+                      while True:
+                          step += 1
+                          all_complete = run_simulation(segments, sim_params,method_choice,e)
+                          print("llll")
                         
 
-                        if all_complete and forth != 3:
+                          if all_complete and forth != 3:
+                              
+                              
 
-                            step_rouds +=step
+                              step_rouds +=step
 
-                            if Sndmethod_choice == "B":
-                                current_counts = [seg.storage_count + 1 for seg in segments]#各のストレージカウントを個々で蓄える
+                              step_counts[forth].append(step)
+ 
+                              if Sndmethod_choice == "B":
+                                  current_counts = [seg.storage_count + 1 for seg in segments]#各のストレージカウントを個々で蓄える
 
-                                for i in range(num_segments):
-                                    Fidelity_counts_per_seg[i][forth].append(current_counts[i])
+                                  for i in range(num_segments):
+                                      Fidelity_counts_per_seg[i][forth].append(current_counts[i])
 
-                            break        
+                              forth +=1        
 
-                        elif all_complete and forth == 3:
+                              break        
+
+                          elif all_complete and forth == 3:
                             
-                            step_rouds +=step
+                              step_rouds +=step
+                              
 
                             # ---------------------------------------------------
                             # 1. 光を出していた時間 (Generation Time)
                             # ---------------------------------------------------
 
-                            if Sndmethod_choice == "B":
-                                current_counts = [seg.storage_count + 1 for seg in segments]#各のストレージカウントを個々で蓄える
+                              if Sndmethod_choice == "B":
+                                  current_counts = [seg.storage_count + 1 for seg in segments]#各のストレージカウントを個々で蓄える
 
-                                for i in range(num_segments):
-                                    Fidelity_counts_per_seg[i][forth].append(current_counts[i])
-
-
-                            if method_choice == "A":
-                                t_generation = (step_rouds) * param_dict.get("t_AFC")#＋1はデッドタイム
-                            else:
-                                t_generation = ((step_rouds) * param_dict.get("t_AFC")) / param_dict.get("separate")#＋1はデッドタイム
+                                  for i in range(num_segments):
+                                      Fidelity_counts_per_seg[i][forth].append(current_counts[i])
+                                      #print(Fidelity_counts_per_seg[i][forth][attempt])
 
 
+                              if method_choice == "A":
+                                  t_generation = (step_rouds) * param_dict.get("t_AFC")#＋1はデッドタイム
+                              else:
+                                  t_generation = ((step_rouds) * param_dict.get("t_AFC")) / param_dict.get("separate")#＋1はデッドタイム
 
 
 
-                            t_latency_total =4*(param_dict.get("t_CNOT") + param_dict.get("t_QR"))
+
+
+                              t_latency_total =4*(param_dict.get("t_CNOT") + param_dict.get("t_QR"))
 
                           
-                            t_elapsed = t_generation + t_latency_total #* total_golobal_count
+                              t_elapsed = t_generation + t_latency_total #* total_golobal_count
                             # print(total_golobal_count) # Removed excessive print
 
 
@@ -1686,32 +1724,87 @@ def main_loop():
 
 
                             #Fiderity_times.append(Fiderity_count)
+                              if fail == 0:
+                                execution_times.append(t_elapsed)
+                              else:
+                                execution_times[attempt] += t_elapsed    
 
-                            execution_times.append(t_elapsed)
+                              if method_choice == "A":
+                                  ttrans = param_dict.get("t_QR", 0.0) + param_dict.get("t_CNOT", 0.0) + param_dict.get("t_AFC")*(sim_params["n_ELs"]-1)
+                                  eta_qst_total = prob_qr * (param_dict.get("eta_AFC") ** (sim_params["n_ELs"] - 1))
 
-                            if method_choice == "A":
-                                ttrans = param_dict.get("t_QR", 0.0) + param_dict.get("t_CNOT", 0.0) + param_dict.get("t_AFC")*(sim_params["n_ELs"]-1)
-                                eta_qst_total = prob_qr * (param_dict.get("eta_AFC") ** (sim_params["n_ELs"] - 1))
-
-                            else :
-                                ttrans = param_dict.get("t_QR", 0.0) + param_dict.get("t_CNOT", 0.0) + param_dict.get("t_AFC")
-                                eta_qst_total = prob_qr
+                              else :
+                                  ttrans = param_dict.get("t_QR", 0.0) + param_dict.get("t_CNOT", 0.0) + param_dict.get("t_AFC")
+                                  eta_qst_total = prob_qr
 
                                 # その修正した効率を使って tau を計算
                                 # 分母の log の中身: 1 - (eta_qst_total^2 * ...)
-                            tau = ((1/(sim_params["R_EPPS"]*sim_params["eta_EPPS"])) * np.log(1-(1-param_dict.get("eps"))**(1/sim_params["num_segments"])) / np.log(1 - (eta_qst_total**2) * (prob_el**sim_params["n_ELs"]) * (prob_ec**(sim_params["n_ELs"]-1)))) * sim_params["separate"] + ttrans
+                              tau = ((1/(sim_params["R_EPPS"]*sim_params["eta_EPPS"])) * np.log(1-(1-param_dict.get("eps"))**(1/sim_params["num_segments"])) / np.log(1 - (eta_qst_total**2) * (prob_el**sim_params["n_ELs"]) * (prob_ec**(sim_params["n_ELs"]-1)))) * sim_params["separate"] + ttrans
                             #print(tau)
                             #tau = (1/0.95 + ((1+sim_params["n_ELs"])/0.05))* (param_dict.get("eta_AFC"))
                             #prob_el, prob_afc, prob_qr, prob_ec, tau = probs
 
                             # print(t_elapsed) # Removed excessive print
 
-                            if tau-t_elapsed >= 0:
-                                probabilty_check.append(1)
-                            else:
-                                probabilty_check.append(0)
+                              if tau-t_elapsed >= 0:
+                                  probabilty_check.append(1)
+                              else:
+                                  probabilty_check.append(0)
 
-                            step_counts.append(step)
+
+                              step_counts[forth].append(step)
+
+
+
+
+
+                              if Sndmethod_choice == "B":
+                                for i in range(num_segments):
+                                  for forth in range(4):
+                        
+                                    #mean_Fiderity[i].append(np.mean(Fidelity_counts_per_seg[i]))#intendをここにしないと,attemptsと、for(4)に入らない
+                                    F_list_eachattempt[i].append(Fidelity_counts_per_seg[i][forth][attempt])
+
+                              else:
+                                  F_list_eachattempt.append(1)
+
+
+
+
+                              #---　累積ステップの計算 ---
+                              if Sndmethod_choice == "B":
+                                        # F_listR[0] ～ [2] までを処理したいので range(3)
+
+                                for k in range(num_len):
+                                    # step_R の [i+1] から [3] までを合計して足す
+                                    # スライスは「最後の数字を含まない」ので、3まで入れたければ 4 と書く
+                                    for i in range(3):    
+                
+                                        F_list_eachattempt[k][i] += sum(step_counts[i+1 : 4][attempt])
+                
+                              else:
+
+                                for i in range(3):    
+
+                                  F_list_eachattempt[i] += sum(step_counts[i+1 : 4])
+
+                              
+
+                              
+
+                              #print("debug")
+                              Disproba = Distilation_caluculation_A(e,F_list_eachattempt,Sndmethod_choice,num_len,mode="prob")
+                              if check_success(Disproba):#F_listを定義してからでないと行けない
+                                  forth +=1
+                                  print("成功{forth}")
+                                  
+                                  break
+                            
+                              else:
+                                  fail +=1
+                                  forth = 0
+                                  print(f"失敗{fail}回目")
+                                  break#もう一度simulationやらせる処理 
 
                             # #シュミレーションの処理
                             # if check_success(Distilation_caluculation_A(e,F_list,Sndmethod_choice,num_len,mode=prob)):#F_listを定義してからでないと行けない
@@ -1724,32 +1817,33 @@ def main_loop():
 
 
                         # 無限ループ防止 (適当な上限)
-                        if step > 100000000000000:
-                            step_counts.append(step) # 失敗扱い
-                            break
+                          if step > 100000000000000:
+                              step_counts[forth].append(step) # 失敗扱い
+                              break
 
                     # 進捗表示 (10%ごと)
-                    if (attempt + 1) % (attempts // 10 + 1) == 0:
-                        print(".", end="")
+                      if (attempt + 1) % (attempts // 10 + 1) == 0:
+                          print(".", end="")
 
 
 
 
 
-                #------Distilliationの要素構築------#
-                mean_step = np.mean(step_counts)
-                step_R.append(mean_step)
+                #------Distilliation（平均）の要素構築------#
+              mean_ap.append(np.mean(execution_times))  
+              for i in range(4):
+                step_R.append(np.mean(step_counts[i]))
 
-                if Sndmethod_choice == "B":
+              if Sndmethod_choice == "B":
 
-                    for i in range(num_segments):
-                        for forth in range(4):
+                for i in range(num_segments):
+                  for forth in range(4):
                         
                             #mean_Fiderity[i].append(np.mean(Fidelity_counts_per_seg[i]))#intendをここにしないと,attemptsと、for(4)に入らない
-                            F_listR[i].append(np.mean(Fidelity_counts_per_seg[i][forth]))
+                     F_listR[i].append(np.mean(Fidelity_counts_per_seg[i][forth]))
 
-                else:
-                    F_listR.append(1)        
+              else:
+                  F_listR.append(1)        
 
             
                 
@@ -1757,29 +1851,32 @@ def main_loop():
 
         
             #print(F_listR)#デバック
-            if Sndmethod_choice == "B":
+              if Sndmethod_choice == "B":
                         # F_listR[0] ～ [2] までを処理したいので range(3)
-                for k in range(num_len):
+                  for k in range(num_len):
                     # step_R の [i+1] から [3] までを合計して足す
                     # スライスは「最後の数字を含まない」ので、3まで入れたければ 4 と書く
-                    for i in range(3):    
+                      for i in range(3):    
  
-                        F_listR[k][i] += sum(step_R[i+1 : 4])
-                        print(f"k={k}, i={i}, F_listRのk階の部屋数={len(F_listR[k])}")
+                          F_listR[k][i] += sum(step_R[i+1 : 4])
+                          print(f"k={k}, i={i}, F_listRのk階の部屋数={len(F_listR[k])}")
  
-            else:
-                for i in range(3):    
+              else:
+                  for i in range(3):    
 
-                        F_listR[i] += sum(step_R[i+1 : 4])     
+                          F_listR[i] += sum(step_R[i+1 : 4])     
 
+              break
 
             # --- ディスティレーションによる失敗確率の定義　---
-             
-            if check_success(Distilation_caluculation_A(e,F_listR,Sndmethod_choice,num_len,mode="prob")):#F_listを定義してからでないと行けない
-                break
+            #   Disproba = Distilation_caluculation_A(e,F_listR,Sndmethod_choice,num_len,mode="prob")
+            #   if check_success(Disproba):#F_listを定義してからでないと行けない
+            #       break
             
-            else:
-                pass#もう一度simulationやらせる処理                
+            #   else:
+            #       fail +=1
+            #       print(f"失敗{fail}回目")
+            #       pass#もう一度simulationやらせる処理                
 
         
     # --- 計算ロジック (提供された式) ---
@@ -1794,9 +1891,9 @@ def main_loop():
                     F_index.append(q1) 
             
             else:
-                for i in range(len(F_listR)):
-                    q1 = (1 - 0.05) * (1 - 0.05)**(num_len)*(1-0.05)**(num_len-1)* (1-0.05)**(num_len-1)* (1-(1/2)*(1 - np.exp(-(F_listR[i]*10**(-4))/e)))
-                    F_index.append(q1)
+               for i in range(len(F_listR)):
+                     q1 = (1 - 0.05) * (1 - 0.05)**(num_len)*(1-0.05)**(num_len-1)* (1-0.05)**(num_len-1)* (1-(1/2)*(1 - np.exp(-(F_listR[i]*10**(-4))/e)))
+                     F_index.append(q1)
             
             print(f"F_index{len(F_index)}")
             befor_Fiderity = np.prod(F_index)
@@ -1867,7 +1964,7 @@ def main_loop():
           tau_list.append(tau)
 
           mean_Fiderity = np.mean(Fiderity_times)
-          mean_time = np.mean(execution_times)
+          mean_time = np.sum(mean_ap)
           time_95_percentile = np.percentile(execution_times, 95)
           edr_95 = 1.0 / time_95_percentile
           std_dev_time = np.std(execution_times) # 標準偏差
