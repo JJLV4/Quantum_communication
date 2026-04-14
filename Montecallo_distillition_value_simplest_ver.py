@@ -14,6 +14,9 @@ import itertools
 import qutip as qt
 import numpy as np
 from qutip_qip.operations import cnot # CNOTをqutip_qipからインポート
+from mpl_toolkits.mplot3d import Axes3D
+from matplotlib.colors import LogNorm
+from scipy.ndimage import gaussian_filter # ぼかし用のライブラリ
 
 #from google.colab import drive
 #drive.mount('/content/drive') # Excelを使用する場合はコメントアウトを外す2
@@ -1108,8 +1111,8 @@ def Distilation_caluculation_A(e,F_total,Sndmethod_choice,num_len,mode):
     return Total_Distilation_Fidelity - F_max
   elif mode =="prob":
     print(f"Distillation{prob}")
-    print(f"Hop by Hop {prob**(num_len) * (1/2)**(num_len-1)}")
-    return prob**(num_len) * (1/2)**(num_len-1) #ベルスワッピングの成功確率を1/2とした場合  
+    print(f"Hop by Hop {prob**(num_len)}")
+    return prob**(num_len)  #ベルスワッピングの成功確率を1/2とした場合  
   else:
     return Total_Distilation_Fidelity
 
@@ -1408,8 +1411,8 @@ def Distilation_caluculation_B(e,F_total,Sndmethod_choice,num_len,mode):
   if mode =="brentq":
     return Total_Distilation_Fidelity -  F_max
   elif mode =="prob":
-    print(f"END TO END {prob * (1/16)**(num_len)}")
-    return prob * (1/16)**(num_len) #ベルスワッピングの成功確率を1/2とした場合 
+    print(f"END TO END {prob}")
+    return prob  #ベルスワッピングの成功確率を1/2とした場合 
   else:
     return Total_Distilation_Fidelity  
 
@@ -1431,6 +1434,83 @@ def find_valley_entrance(calc_func, F_data,Sndmethod_choice,num_len):
             
     return -2  # ずっとプラスだった場合（通常はありえない）
 
+def histgram(a,b,attempts):
+    
+   
+    database_segment = np.zeros((attempts, 2), dtype=np.float32)
+    database_segment[:attempts, 0] = a  # 一括代入 (aが配列の場合)
+    database_segment[:attempts, 1] = b
+
+    # 1. 2次元ヒストグラムとして集計
+    nbins = 50  # 分割数
+    hist, xedges, yedges = np.histogram2d(a, b, bins=nbins)
+
+    # 2. グラフの座標設定
+    xpos, ypos = np.meshgrid(xedges[:-1] + 0.01, yedges[:-1] + 0.01, indexing="ij")
+    xpos = xpos.ravel()
+    ypos = ypos.ravel()
+    zpos = 0
+
+    # 3. 棒の大きさを設定
+    dx = (xedges[1] - xedges[0]) * 0.8 + np.zeros_like(zpos)
+    dy = (yedges[1] - yedges[0]) * 0.8 + np.zeros_like(zpos)
+    dz = hist.ravel()
+
+    # 4. 描画
+    fig = plt.figure(figsize=(10, 8))
+    ax = fig.add_subplot(111, projection='3d')
+    ax.bar3d(xpos, ypos, zpos, dx, dy, dz, zsort='average', color='skyblue')
+
+    ax.set_xlabel('Array A (time)')
+    ax.set_ylabel('Array B (Fidelity)')
+    ax.set_zlabel('Frequency')
+    ax.set_title('3D Histogram of Simulation Results')
+
+    plt.savefig('3d_histogram.png') # 画像として保存
+    np.save('simulation_database.npy', database_segment) 
+    print("Database saved as 'simulation_database.npy'")
+    del database_segment
+
+
+
+
+def heatmap_analysis(a, b, attempts):
+    # --- 1. データベース保存 (配列サイズのエラー回避のため len(a) を使用) ---
+    actual_size = len(a)
+    database_segment = np.zeros((attempts, 2), dtype=np.float32)
+    database_segment[:attempts, 0] = a 
+    database_segment[:attempts, 1] = b
+
+    # --- 2. ヒストグラムの集計 ---
+    nbins = 500 # 解像度を程よく高く設定
+    hist, xedges, yedges = np.histogram2d(a, b, bins=nbins)
+
+    # --- 3. ガウスぼかしの適用 ---
+    # sigmaが大きいほど滑らか（ぼやけた）な表示になります。
+    # 0.5〜2.0の間で調整するのがおすすめです。
+    hist_smoothed = gaussian_filter(hist, sigma=1.5)
+
+    # --- 4. 描画 ---
+    plt.figure(figsize=(10, 8))
+    
+    # ぼかしたデータ(hist_smoothed)を表示
+    im = plt.imshow(hist_smoothed.T, origin='lower', 
+                    extent=[xedges[0], xedges[-1], yedges[0], yedges[-1]],
+                    aspect='auto', cmap='viridis', norm=LogNorm())
+
+    plt.colorbar(im, label='Frequency (Smoothed, Log Scale)')
+
+    # --- 5. 装飾と保存 ---
+    plt.xlabel('Time (Array A)')
+    plt.ylabel('Fidelity (Array B)')
+    plt.title(f'Gaussian Smoothed Heatmap (Attempts: {actual_size})')
+
+    plt.savefig('heatmap_blurred.png')
+    
+    
+    print("Database saved and plot generated with Gaussian filter.")
+    
+    del database_segment
 
 # --- 6. メインループ ---
 def main_loop():
@@ -1555,6 +1635,7 @@ def main_loop():
           resultsB = []
           resultsC = []
           mean_ap = []
+          Fidelity_for_histgram_Hop = []
           
 
 
@@ -1799,9 +1880,13 @@ def main_loop():
 
                               #print("debug")
                               Disproba = Distilation_caluculation_A(e,F_list_eachattempt,Sndmethod_choice,num_len,mode="prob")
+                              
+
                               if check_success(Disproba):#F_listを定義してからでないと行けない
                                   forth +=1
                                   print(f"成功{forth}")
+                                  Fidelity_for_histgram_Hop.append(Distilation_caluculation_A(e,F_list_eachattempt,Sndmethod_choice,num_len,mode="normal"))#Hop by Hopに限る
+
                                   
                                   
                                   break
@@ -2142,6 +2227,9 @@ def main_loop():
 
           # 最後にグラフを表示！
           plt.show()
+
+          histgram(execution_times,Fidelity_for_histgram_Hop,attempts)
+          #heatmap_analysis(execution_times, Fidelity_for_histgram_Hop, attempts)
 
 
 
