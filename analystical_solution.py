@@ -2,7 +2,7 @@ import numpy as np
 import pandas
 from matplotlib import pyplot as plt
 import os
-  
+   
 def main():
     """
     This python script calculates the minimum rate of entanglement distribution between two QRs connected by N ARC chains, each chain composed of

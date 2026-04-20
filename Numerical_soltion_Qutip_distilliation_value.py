@@ -3,7 +3,7 @@
 import qutip as qt
 import numpy as np
 from qutip_qip.operations import cnot # CNOTをqutip_qipからインポート
-
+ 
 # ---------------------------------------------------------
 # 1. 準備：状態の定義
 # --------------------- ------------------------------------
