@@ -36,7 +36,7 @@ class RepeaterSegment:
         self.now_helald = 0
         self.helald_distance = 0
         self.helald_time = False
-
+ 
         self.storage_count =0
         self.step_count = 0
 
