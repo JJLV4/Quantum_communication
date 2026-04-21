@@ -8,7 +8,16 @@ import time
 from IPython.display import clear_output, display
 import os
 from scipy.optimize import brentq
+#for the perm function
 import itertools
+#qutip install
+import qutip as qt
+import numpy as np
+from qutip_qip.operations import cnot # CNOTをqutip_qipからインポート
+from mpl_toolkits.mplot3d import Axes3D
+from matplotlib.colors import LogNorm
+from scipy.ndimage import gaussian_filter # ぼかし用のライブラリ
+
 #from google.colab import drive
 #drive.mount('/content/drive') # Excelを使用する場合はコメントアウトを外す2
 
@@ -831,6 +840,16 @@ def Distilation_caluculation_A(e,F_total,Sndmethod_choice,num_len,mode):
   F_index = []
   Distilation_value =  [-1] * len(F_total)
   b_f = -1 
+
+  q0 = qt.basis(2, 0)
+  q1 = qt.basis(2, 1)
+
+#ベル状態の仕分け怪しいが一旦信じよう
+  psi_minus = (qt.tensor(q0, q1) - qt.tensor(q1, q0)).unit()
+  psi_plus  = (qt.tensor(q0, q1) + qt.tensor(q1, q0)).unit()
+  phi_plus  = (qt.tensor(q0, q0) + qt.tensor(q1, q1)).unit()
+  phi_minus = (qt.tensor(q0, q0) - qt.tensor(q1, q1)).unit()
+
   
   
   base_indices = [0,1,2,3]
@@ -859,20 +878,92 @@ def Distilation_caluculation_A(e,F_total,Sndmethod_choice,num_len,mode):
                 F_index.append(F_mmx) 
 
             # x2, y2, z2, q2 の計算
-            x2 = (1 - now_index[0]) / 3
-            y2 = (1 - now_index[1]) / 3
-            z2 = (1 - now_index[2]) / 3
-            q2 = (1 - now_index[3]) / 3
+            noise_coeff = (1 - now_index[0]) / 3
+            noise_coeff2 = (1 - now_index[1]) / 3
+            noise_coeff3 = (1 - now_index[2]) / 3
+            noise_coeff4  = (1 - now_index[3]) / 3
 
-            # p1, p2, p3, p4 の計算
-            p1 = (now_index[1]*x2 + now_index[0]*y2)*(now_index[3]*z2 + now_index[2]*q2) + 4*x2*y2*z2*q2
-            p2 = 2*x2*y2*(now_index[3]*z2 + now_index[2]*q2) + 2*z2*q2*(now_index[1]*x2 + now_index[0]*y2)
-            p3 = (now_index[0]*now_index[1] + x2*y2)*(now_index[2]*now_index[3] + z2*q2) + 4*x2*y2*z2*q2
+            
+            rho_1 = (now_index[0] * qt.ket2dm(psi_minus) +
+            noise_coeff * qt.ket2dm(psi_plus) +
+            noise_coeff * qt.ket2dm(phi_plus) +
+            noise_coeff * qt.ket2dm(phi_minus))
 
-            # 元のコードの記述通り (x1*y1 + x1*y2)
-            p4 = 2*x2*y2*(now_index[2]*now_index[3] + z2*q2) + 2*z2*q2*(now_index[0]*now_index[1] + now_index[0]*y2)
+            rho_2 = (now_index[1] * qt.ket2dm(psi_minus) +
+            noise_coeff2 * qt.ket2dm(psi_plus) +
+            noise_coeff2 * qt.ket2dm(phi_plus) +
+            noise_coeff2 * qt.ket2dm(phi_minus))
 
-            Distilation_value[i] = p3 / (p1 + p2 + p3 + p4)
+            rho_3 = (now_index[2] * qt.ket2dm(psi_minus) +
+            noise_coeff3 * qt.ket2dm(psi_plus) +
+            noise_coeff3 * qt.ket2dm(phi_plus) +
+            noise_coeff3 * qt.ket2dm(phi_minus))
+
+            rho_4 = (now_index[3] * qt.ket2dm(psi_minus) +
+            noise_coeff4 * qt.ket2dm(psi_plus) +
+            noise_coeff4 * qt.ket2dm(phi_plus) +
+            noise_coeff4 * qt.ket2dm(phi_minus))
+
+
+            rho_total1 = qt.tensor(rho_1, rho_2)
+            rho_total2 = qt.tensor(rho_3, rho_4)
+
+
+            H_matrix = 1 / np.sqrt(2) * qt.Qobj([[1, 1], [1, -1]])
+            H_total = qt.tensor(H_matrix, H_matrix, H_matrix, H_matrix)
+
+
+            try:
+                CNOT_Alice = cnot(N=4, control=0, target=2) # qt.cnot ではなく cnot を使用
+                CNOT_Bob   = cnot(N=4, control=1, target=3) # qt.cnot ではなく cnot を使用
+            except AttributeError:
+                print("【重要】CNOTが見つからないため、手動定義に切り替えます...")
+                # 手動でCNOTを作る（力技）
+                # 0->2 のCNOTなどを作るのは大変なので、qutip-qipのインストールを推奨するメッセージを出します
+                raise ImportError("QuTiP v5をお使いのようです。CNOTを使うには '!pip install qutip-qip' を実行してから、 'from qutip_qip.operations import cnot' をコードの先頭に追加してください。")
+
+            U_cnot = CNOT_Alice * CNOT_Bob
+            rho_after_cnot1 = U_cnot * rho_total1 * U_cnot.dag()
+            rho_after_cnot2 = U_cnot * rho_total2 * U_cnot.dag()
+
+            P_00 = qt.tensor(qt.qeye(2), qt.qeye(2), qt.ket2dm(qt.tensor(q0, q0)))
+            P_11 = qt.tensor(qt.qeye(2), qt.qeye(2), qt.ket2dm(qt.tensor(q1, q1)))
+            P_success = P_00 + P_11
+
+
+            rho_unnormalized1 = P_success * rho_after_cnot1 * P_success.dag()
+            rho_unnormalized2 = P_success * rho_after_cnot2 * P_success.dag()
+
+
+            #テンソルを切り離す
+            rho_p1d = rho_unnormalized1.ptrace([0, 1])
+            rho_p3d = rho_unnormalized2.ptrace([0, 1])
+
+            #σzのディスティレーション
+            rho_total3 = qt.tensor(rho_p1d, rho_p3d)
+
+            rho_total3 =  H_total * rho_total3 * H_total.dag()
+
+            # rho_p1d = H_total * rho_p1d * H_total.dag()
+            # rho_p3d = H_total * rho_p3d * H_total.dag()
+            rho_after_cnot3 = U_cnot * rho_total3 * U_cnot.dag()
+            rho_unnormalized3 = P_success * rho_after_cnot3 * P_success.dag()
+
+            #成功確率のトレース
+            prob = rho_unnormalized3.tr()
+
+            #規格化
+            rho_unnormalized3= rho_unnormalized3/prob
+
+            #テンソルを切り離す
+            rho_p1dd = rho_unnormalized3.ptrace([0, 1])
+
+
+
+
+
+
+            Distilation_value[i] = qt.expect(qt.ket2dm(phi_plus), rho_p1dd )
 
             if Distilation_value[i] > best_fidelity[i]:
                 best_fidelity[i] = Distilation_value[i]
@@ -900,20 +991,104 @@ def Distilation_caluculation_A(e,F_total,Sndmethod_choice,num_len,mode):
             F_mmx = max(now_index)     
     
         # x2, y2, z2, q2 の計算
-        x2 = (1 - now_index[0]) / 3
-        y2 = (1 - now_index[1]) / 3
-        z2 = (1 - now_index[2]) / 3
-        q2 = (1 - now_index[3]) / 3
+        noise_coeff  = (1 - now_index[0]) / 3
+        noise_coeff2 = (1 - now_index[1]) / 3
+        noise_coeff3 = (1 - now_index[2]) / 3
+        noise_coeff4 = (1 - now_index[3]) / 3
 
-        # p1, p2, p3, p4 の計算
-        p1 = (now_index[1]*x2 + now_index[0]*y2)*(now_index[3]*z2 + now_index[2]*q2) + 4*x2*y2*z2*q2
-        p2 = 2*x2*y2*(now_index[3]*z2 + now_index[2]*q2) + 2*z2*q2*(now_index[1]*x2 + now_index[0]*y2)
-        p3 = (now_index[0]*now_index[1] + x2*y2)*(now_index[2]*now_index[3] + z2*q2) + 4*x2*y2*z2*q2
-
-        # 元のコードの記述通り (x1*y1 + x1*y2)
-        p4 = 2*x2*y2*(now_index[2]*now_index[3] + z2*q2) + 2*z2*q2*(now_index[0]*now_index[1] + now_index[0]*y2)
         
-        Distilation_value2 = p3 / (p1 + p2 + p3 + p4)
+        rho_1 = (now_index[0] * qt.ket2dm(psi_minus) +
+         noise_coeff * qt.ket2dm(psi_plus) +
+         noise_coeff * qt.ket2dm(phi_plus) +
+         noise_coeff * qt.ket2dm(phi_minus))
+
+        rho_2 = (now_index[1] * qt.ket2dm(psi_minus) +
+                noise_coeff2 * qt.ket2dm(psi_plus) +
+                noise_coeff2 * qt.ket2dm(phi_plus) +
+                noise_coeff2 * qt.ket2dm(phi_minus))
+
+        rho_3 = (now_index[2] * qt.ket2dm(psi_minus) +
+                noise_coeff3 * qt.ket2dm(psi_plus) +
+                noise_coeff3 * qt.ket2dm(phi_plus) +
+                noise_coeff3 * qt.ket2dm(phi_minus))
+
+        rho_4 = (now_index[3] * qt.ket2dm(psi_minus) +
+                noise_coeff4 * qt.ket2dm(psi_plus) +
+                noise_coeff4 * qt.ket2dm(phi_plus) +
+                noise_coeff4 * qt.ket2dm(phi_minus))
+
+
+        rho_total1 = qt.tensor(rho_1, rho_2)
+        rho_total2 = qt.tensor(rho_3, rho_4)
+
+        H_matrix = 1 / np.sqrt(2) * qt.Qobj([[1, 1], [1, -1]])
+        H_total = qt.tensor(H_matrix, H_matrix, H_matrix, H_matrix)
+
+
+
+        try:
+            CNOT_Alice = cnot(N=4, control=0, target=2) # qt.cnot ではなく cnot を使用
+            CNOT_Bob   = cnot(N=4, control=1, target=3) # qt.cnot ではなく cnot を使用
+        except AttributeError:
+            print("【重要】CNOTが見つからないため、手動定義に切り替えます...")
+            # 手動でCNOTを作る（力技）
+            # 0->2 のCNOTなどを作るのは大変なので、qutip-qipのインストールを推奨するメッセージを出します
+            raise ImportError("QuTiP v5をお使いのようです。CNOTを使うには '!pip install qutip-qip' を実行してから、 'from qutip_qip.operations import cnot' をコードの先頭に追加してください。")
+
+        U_cnot = CNOT_Alice * CNOT_Bob
+        rho_after_cnot1 = U_cnot * rho_total1 * U_cnot.dag()
+        rho_after_cnot2 = U_cnot * rho_total2 * U_cnot.dag()
+
+
+
+        # ---------------------------------------------------------
+        # 4. 測定と事後選択
+        # ---------------------------------------------------------
+        P_00 = qt.tensor(qt.qeye(2), qt.qeye(2), qt.ket2dm(qt.tensor(q0, q0)))
+        P_11 = qt.tensor(qt.qeye(2), qt.qeye(2), qt.ket2dm(qt.tensor(q1, q1)))
+        P_success = P_00 + P_11
+
+
+        rho_unnormalized1 = P_success * rho_after_cnot1 * P_success.dag()
+        rho_unnormalized2 = P_success * rho_after_cnot2 * P_success.dag()
+
+
+        #テンソルを切り離す
+        rho_p1d = rho_unnormalized1.ptrace([0, 1])
+        rho_p3d = rho_unnormalized2.ptrace([0, 1])
+
+        #σzのディスティレーション
+        rho_total3 = qt.tensor(rho_p1d, rho_p3d)
+
+        rho_total3 =  H_total * rho_total3 * H_total.dag()
+
+        # rho_p1d = H_total * rho_p1d * H_total.dag()
+        # rho_p3d = H_total * rho_p3d * H_total.dag()
+        rho_after_cnot3 = U_cnot * rho_total3 * U_cnot.dag()
+        rho_unnormalized3 = P_success * rho_after_cnot3 * P_success.dag()
+
+        #成功確率のトレース
+        prob = rho_unnormalized3.tr()
+
+        #規格化
+        rho_unnormalized3= rho_unnormalized3/prob
+
+        #テンソルを切り離す
+        rho_p1dd = rho_unnormalized3.ptrace([0, 1])
+
+
+
+
+
+
+
+
+
+
+
+
+
+        Distilation_value2 = qt.expect(qt.ket2dm(phi_plus), rho_p1dd )
 
         if Distilation_value2 > b_f:
                 b_f = Distilation_value2
@@ -934,6 +1109,10 @@ def Distilation_caluculation_A(e,F_total,Sndmethod_choice,num_len,mode):
 
   if mode =="brentq":
     return Total_Distilation_Fidelity - F_max
+  elif mode =="prob":
+    print(f"Distillation{prob}")
+    print(f"Hop by Hop {prob}")#prob**num_lenはメモリによって変わることに注意マトリョーシカプロトコルより、N=1のみで考えた
+    return prob**(num_len)  #ベルスワッピングの成功確率を1/2とした場合  
   else:
     return Total_Distilation_Fidelity
 
@@ -957,6 +1136,14 @@ def Distilation_caluculation_B(e,F_total,Sndmethod_choice,num_len,mode):
   best_pattern = None
 
 
+  q0 = qt.basis(2, 0)
+  q1 = qt.basis(2, 1)
+
+#ベル状態の仕分け怪しいが一旦信じよう
+  psi_minus = (qt.tensor(q0, q1) - qt.tensor(q1, q0)).unit()
+  psi_plus  = (qt.tensor(q0, q1) + qt.tensor(q1, q0)).unit()
+  phi_plus  = (qt.tensor(q0, q0) + qt.tensor(q1, q1)).unit()
+  phi_minus = (qt.tensor(q0, q0) - qt.tensor(q1, q1)).unit()
 
 
   Distilation = []
@@ -964,7 +1151,7 @@ def Distilation_caluculation_B(e,F_total,Sndmethod_choice,num_len,mode):
   
   F_index = []
 
-
+  
   if Sndmethod_choice == 'B':
     for count,perm in enumerate(itertools.permutations(base_indices,4)):
         F_array = []
@@ -1004,20 +1191,92 @@ def Distilation_caluculation_B(e,F_total,Sndmethod_choice,num_len,mode):
     
             #print(f"デバック{next_index[0]}")
             # x2, y2, z2, q2 の計算
-            x2 = (1 - next_index[0]) / 3
-            y2 = (1 - next_index[1]) / 3
-            z2 = (1 - next_index[2]) / 3
-            q2 = (1 - next_index[3]) / 3
+            noise_coeff = (1 - next_index[0]) / 3
+            noise_coeff2 = (1 - next_index[1]) / 3
+            noise_coeff3 = (1 - next_index[2]) / 3
+            noise_coeff4 = (1 - next_index[3]) / 3
 
-            # p1, p2, p3, p4 の計算
-            p1 = (next_index[1]*x2 + next_index[0]*y2)*(next_index[3]*z2 + next_index[2]*q2) + 4*x2*y2*z2*q2
-            p2 = 2*x2*y2*(next_index[3]*z2 + next_index[2]*q2) + 2*z2*q2*(next_index[1]*x2 + next_index[0]*y2)
-            p3 = (next_index[0]*next_index[1] + x2*y2)*(next_index[2]*next_index[3] + z2*q2) + 4*x2*y2*z2*q2
-
-            # 元のコードの記述通り (x1*y1 + x1*y2)
-            p4 = 2*x2*y2*(next_index[2]*next_index[3] + z2*q2) + 2*z2*q2*(next_index[0]*next_index[1] + next_index[0]*y2)
             
-            Distilation_value = p3 / (p1 + p2 + p3 + p4)
+            rho_1 = (next_index[0] * qt.ket2dm(psi_minus) +
+            noise_coeff * qt.ket2dm(psi_plus) +
+            noise_coeff * qt.ket2dm(phi_plus) +
+            noise_coeff * qt.ket2dm(phi_minus))
+
+            rho_2 = (next_index[1] * qt.ket2dm(psi_minus) +
+            noise_coeff2 * qt.ket2dm(psi_plus) +
+            noise_coeff2 * qt.ket2dm(phi_plus) +
+            noise_coeff2 * qt.ket2dm(phi_minus))
+
+            rho_3 = (next_index[2] * qt.ket2dm(psi_minus) +
+            noise_coeff3 * qt.ket2dm(psi_plus) +
+            noise_coeff3 * qt.ket2dm(phi_plus) +
+            noise_coeff3 * qt.ket2dm(phi_minus))
+
+            rho_4 = (next_index[3] * qt.ket2dm(psi_minus) +
+            noise_coeff4 * qt.ket2dm(psi_plus) +
+            noise_coeff4 * qt.ket2dm(phi_plus) +
+            noise_coeff4 * qt.ket2dm(phi_minus))
+
+            
+            rho_total1 = qt.tensor(rho_1, rho_2)
+            rho_total2 = qt.tensor(rho_3, rho_4)
+
+
+            H_matrix = 1 / np.sqrt(2) * qt.Qobj([[1, 1], [1, -1]])
+            H_total = qt.tensor(H_matrix, H_matrix, H_matrix, H_matrix)
+
+            
+            try:
+                CNOT_Alice = cnot(N=4, control=0, target=2) # qt.cnot ではなく cnot を使用
+                CNOT_Bob   = cnot(N=4, control=1, target=3) # qt.cnot ではなく cnot を使用
+            except AttributeError:
+                print("【重要】CNOTが見つからないため、手動定義に切り替えます...")
+                # 手動でCNOTを作る（力技）
+                # 0->2 のCNOTなどを作るのは大変なので、qutip-qipのインストールを推奨するメッセージを出します
+                raise ImportError("QuTiP v5をお使いのようです。CNOTを使うには '!pip install qutip-qip' を実行してから、 'from qutip_qip.operations import cnot' をコードの先頭に追加してください。")
+
+            U_cnot = CNOT_Alice * CNOT_Bob
+            rho_after_cnot1 = U_cnot * rho_total1 * U_cnot.dag()
+            rho_after_cnot2 = U_cnot * rho_total2 * U_cnot.dag()
+
+
+
+            # ---------------------------------------------------------
+            # 4. 測定と事後選択
+            # ---------------------------------------------------------
+            P_00 = qt.tensor(qt.qeye(2), qt.qeye(2), qt.ket2dm(qt.tensor(q0, q0)))
+            P_11 = qt.tensor(qt.qeye(2), qt.qeye(2), qt.ket2dm(qt.tensor(q1, q1)))
+            P_success = P_00 + P_11
+
+
+            rho_unnormalized1 = P_success * rho_after_cnot1 * P_success.dag()
+            rho_unnormalized2 = P_success * rho_after_cnot2 * P_success.dag()
+
+
+            #テンソルを切り離す
+            rho_p1d = rho_unnormalized1.ptrace([0, 1])
+            rho_p3d = rho_unnormalized2.ptrace([0, 1])
+
+            #σzのディスティレーション
+            rho_total3 = qt.tensor(rho_p1d, rho_p3d)
+
+            rho_total3 =  H_total * rho_total3 * H_total.dag()
+
+            # rho_p1d = H_total * rho_p1d * H_total.dag()
+            # rho_p3d = H_total * rho_p3d * H_total.dag()
+            rho_after_cnot3 = U_cnot * rho_total3 * U_cnot.dag()
+            rho_unnormalized3 = P_success * rho_after_cnot3 * P_success.dag()
+
+            #成功確率のトレース
+            prob = rho_unnormalized3.tr()
+
+            #規格化
+            rho_unnormalized3= rho_unnormalized3/prob
+
+            #テンソルを切り離す
+            rho_p1dd = rho_unnormalized3.ptrace([0, 1])
+
+            Distilation_value = qt.expect(qt.ket2dm(phi_plus), rho_p1dd )
 
             if Distilation_value > best_fidelity:
                 best_fidelity = Distilation_value
@@ -1045,20 +1304,91 @@ def Distilation_caluculation_B(e,F_total,Sndmethod_choice,num_len,mode):
             F_mmx = max(now_index)     
     
         # x2, y2, z2, q2 の計算
-        x2 = (1 - now_index[0]) / 3
-        y2 = (1 - now_index[1]) / 3
-        z2 = (1 - now_index[2]) / 3
-        q2 = (1 - now_index[3]) / 3
+        noise_coeff = (1 - now_index[0]) / 3
+        noise_coeff2 = (1 - now_index[1]) / 3
+        noise_coeff3 = (1 - now_index[2]) / 3
+        noise_coeff4 = (1 - now_index[3]) / 3
 
-        # p1, p2, p3, p4 の計算
-        p1 = (now_index[1]*x2 + now_index[0]*y2)*(now_index[3]*z2 + now_index[2]*q2) + 4*x2*y2*z2*q2
-        p2 = 2*x2*y2*(now_index[3]*z2 + now_index[2]*q2) + 2*z2*q2*(now_index[1]*x2 + now_index[0]*y2)
-        p3 = (now_index[0]*now_index[1] + x2*y2)*(now_index[2]*now_index[3] + z2*q2) + 4*x2*y2*z2*q2
+        rho_1 = (next_index[0] * qt.ket2dm(psi_minus) +
+        noise_coeff * qt.ket2dm(psi_plus) +
+        noise_coeff * qt.ket2dm(phi_plus) +
+        noise_coeff * qt.ket2dm(phi_minus))
 
-        # 元のコードの記述通り (x1*y1 + x1*y2)
-        p4 = 2*x2*y2*(now_index[2]*now_index[3] + z2*q2) + 2*z2*q2*(now_index[0]*now_index[1] + now_index[0]*y2)
+        rho_2 = (next_index[1] * qt.ket2dm(psi_minus) +
+        noise_coeff2 * qt.ket2dm(psi_plus) +
+        noise_coeff2 * qt.ket2dm(phi_plus) +
+        noise_coeff2 * qt.ket2dm(phi_minus))
+
+        rho_3 = (next_index[2] * qt.ket2dm(psi_minus) +
+        noise_coeff3 * qt.ket2dm(psi_plus) +
+        noise_coeff3 * qt.ket2dm(phi_plus) +
+        noise_coeff3 * qt.ket2dm(phi_minus))
+
+        rho_4 = (next_index[3] * qt.ket2dm(psi_minus) +
+        noise_coeff4 * qt.ket2dm(psi_plus) +
+        noise_coeff4 * qt.ket2dm(phi_plus) +
+        noise_coeff4 * qt.ket2dm(phi_minus))
+
         
-        Distilation_value2 = p3 / (p1 + p2 + p3 + p4)
+        rho_total1 = qt.tensor(rho_1, rho_2)
+        rho_total2 = qt.tensor(rho_3, rho_4)
+
+
+        H_matrix = 1 / np.sqrt(2) * qt.Qobj([[1, 1], [1, -1]])
+        H_total = qt.tensor(H_matrix, H_matrix, H_matrix, H_matrix)
+
+        
+        try:
+            CNOT_Alice = cnot(N=4, control=0, target=2) # qt.cnot ではなく cnot を使用
+            CNOT_Bob   = cnot(N=4, control=1, target=3) # qt.cnot ではなく cnot を使用
+        except AttributeError:
+            print("【重要】CNOTが見つからないため、手動定義に切り替えます...")
+            # 手動でCNOTを作る（力技）
+            # 0->2 のCNOTなどを作るのは大変なので、qutip-qipのインストールを推奨するメッセージを出します
+            raise ImportError("QuTiP v5をお使いのようです。CNOTを使うには '!pip install qutip-qip' を実行してから、 'from qutip_qip.operations import cnot' をコードの先頭に追加してください。")
+
+        U_cnot = CNOT_Alice * CNOT_Bob
+        rho_after_cnot1 = U_cnot * rho_total1 * U_cnot.dag()
+        rho_after_cnot2 = U_cnot * rho_total2 * U_cnot.dag()
+
+
+
+        # ---------------------------------------------------------
+        # 4. 測定と事後選択
+        # ---------------------------------------------------------
+        P_00 = qt.tensor(qt.qeye(2), qt.qeye(2), qt.ket2dm(qt.tensor(q0, q0)))
+        P_11 = qt.tensor(qt.qeye(2), qt.qeye(2), qt.ket2dm(qt.tensor(q1, q1)))
+        P_success = P_00 + P_11
+
+
+        rho_unnormalized1 = P_success * rho_after_cnot1 * P_success.dag()
+        rho_unnormalized2 = P_success * rho_after_cnot2 * P_success.dag()
+
+
+        #テンソルを切り離す
+        rho_p1d = rho_unnormalized1.ptrace([0, 1])
+        rho_p3d = rho_unnormalized2.ptrace([0, 1])
+
+        #σzのディスティレーション
+        rho_total3 = qt.tensor(rho_p1d, rho_p3d)
+
+        rho_total3 =  H_total * rho_total3 * H_total.dag()
+
+        # rho_p1d = H_total * rho_p1d * H_total.dag()
+        # rho_p3d = H_total * rho_p3d * H_total.dag()
+        rho_after_cnot3 = U_cnot * rho_total3 * U_cnot.dag()
+        rho_unnormalized3 = P_success * rho_after_cnot3 * P_success.dag()
+
+        #成功確率のトレース
+        prob = rho_unnormalized3.tr()
+
+        #規格化
+        rho_unnormalized3= rho_unnormalized3/prob
+
+        #テンソルを切り離す
+        rho_p1dd = rho_unnormalized3.ptrace([0, 1])
+
+        Distilation_value2 = qt.expect(qt.ket2dm(phi_plus), rho_p1dd )
 
         if Distilation_value2 > b_f:
                 b_f = Distilation_value2
@@ -1080,6 +1410,9 @@ def Distilation_caluculation_B(e,F_total,Sndmethod_choice,num_len,mode):
 
   if mode =="brentq":
     return Total_Distilation_Fidelity -  F_max
+  elif mode =="prob":
+    print(f"END TO END {prob}")
+    return prob  #ベルスワッピングの成功確率を1/2とした場合 
   else:
     return Total_Distilation_Fidelity  
 
@@ -1101,6 +1434,83 @@ def find_valley_entrance(calc_func, F_data,Sndmethod_choice,num_len):
             
     return -2  # ずっとプラスだった場合（通常はありえない）
 
+def histgram(a,b,attempts):
+    
+   
+    database_segment = np.zeros((attempts, 2), dtype=np.float32)
+    database_segment[:attempts, 0] = a  # 一括代入 (aが配列の場合)
+    database_segment[:attempts, 1] = b
+
+    # 1. 2次元ヒストグラムとして集計
+    nbins = 50  # 分割数
+    hist, xedges, yedges = np.histogram2d(a, b, bins=nbins)
+
+    # 2. グラフの座標設定
+    xpos, ypos = np.meshgrid(xedges[:-1] + 0.01, yedges[:-1] + 0.01, indexing="ij")
+    xpos = xpos.ravel()
+    ypos = ypos.ravel()
+    zpos = 0
+
+    # 3. 棒の大きさを設定
+    dx = (xedges[1] - xedges[0]) * 0.8 + np.zeros_like(zpos)
+    dy = (yedges[1] - yedges[0]) * 0.8 + np.zeros_like(zpos)
+    dz = hist.ravel()
+
+    # 4. 描画
+    fig = plt.figure(figsize=(10, 8))
+    ax = fig.add_subplot(111, projection='3d')
+    ax.bar3d(xpos, ypos, zpos, dx, dy, dz, zsort='average', color='skyblue')
+
+    ax.set_xlabel('Array A (time)')
+    ax.set_ylabel('Array B (Fidelity)')
+    ax.set_zlabel('Frequency')
+    ax.set_title('3D Histogram of Simulation Results')
+
+    plt.savefig('3d_histogram.png') # 画像として保存
+    np.save('simulation_database.npy', database_segment) 
+    print("Database saved as 'simulation_database.npy'")
+    del database_segment
+
+
+
+
+def heatmap_analysis(a, b, attempts):
+    # --- 1. データベース保存 (配列サイズのエラー回避のため len(a) を使用) ---
+    actual_size = len(a)
+    database_segment = np.zeros((attempts, 2), dtype=np.float32)
+    database_segment[:attempts, 0] = a 
+    database_segment[:attempts, 1] = b
+
+    # --- 2. ヒストグラムの集計 ---
+    nbins = 500 # 解像度を程よく高く設定
+    hist, xedges, yedges = np.histogram2d(a, b, bins=nbins)
+
+    # --- 3. ガウスぼかしの適用 ---
+    # sigmaが大きいほど滑らか（ぼやけた）な表示になります。
+    # 0.5〜2.0の間で調整するのがおすすめです。
+    hist_smoothed = gaussian_filter(hist, sigma=1.5)
+
+    # --- 4. 描画 ---
+    plt.figure(figsize=(10, 8))
+    
+    # ぼかしたデータ(hist_smoothed)を表示
+    im = plt.imshow(hist_smoothed.T, origin='lower', 
+                    extent=[xedges[0], xedges[-1], yedges[0], yedges[-1]],
+                    aspect='auto', cmap='viridis', norm=LogNorm())
+
+    plt.colorbar(im, label='Frequency (Smoothed, Log Scale)')
+
+    # --- 5. 装飾と保存 ---
+    plt.xlabel('Time (Array A)')
+    plt.ylabel('Fidelity (Array B)')
+    plt.title(f'Gaussian Smoothed Heatmap (Attempts: {actual_size})')
+
+    plt.savefig('heatmap_blurred.png')
+    
+    
+    print("Database saved and plot generated with Gaussian filter.")
+    
+    del database_segment
 
 # --- 6. メインループ ---
 def main_loop():
@@ -1214,7 +1624,6 @@ def main_loop():
           y_err_upper = []  # エラーバー上側
           F_list = [] #フィデリティーのカウント
           F_total = []#stepを加算したフィデリティーのカウント
-          step_R = []#ラウンド毎のステップ数
           threshold_value = []#デコヒーレンスの閾値をまとめる配列
           max_Fidelity = []#各セグメントごとのフィデリティーカウントの最大値をまとめる        
           min_Fidelity = []#各セグメントごとのフィデリティーカウントの最小値をまとめる
@@ -1225,6 +1634,8 @@ def main_loop():
           resultsA = []
           resultsB = []
           resultsC = []
+          mean_ap = []
+          Fidelity_for_histgram_Hop = []
           
 
 
@@ -1249,94 +1660,147 @@ def main_loop():
           # 結果を保存するリスト
 
           start_time = time.time()
-          
-          for e in range(1,3):
+
+          #while文でディスティレーションが失敗した時の埋め合わせを行う！Whileで回して最後にDhistillationが成功すれば、その時のstep_rounds基準でやれば良いのだが、#while true
+          for e in range(1,2):
+            while True:  
             # --- 試行ループ ---
             #for num_len in range(vals): 単複数の値を見る時のfor文
-            num_len =vals        #一つのみの値を見る時のnum_len
+              num_len =vals        #一つのみの値を見る時のnum_len
 
-            execution_times = [] # かかった時間 (ステップ数 * 単位時間)
-            step_counts = []     # かかったステップ数
-            probabilty_check = [] #確率でチェック
-            Fiderity_times = []
+              step_R = []#ラウンド毎のステップ数
+              execution_times = [] # かかった時間 (ステップ数 * 単位時間)
+              step_counts = [[] for _ in range(4)]     # かかったステップ数
+              probabilty_check = [] #確率でチェック
+              Fiderity_times = []
+              
 
-            if Sndmethod_choice == "A": # n (EL数) を増やす
-                sim_params["n_ELs"] = num_len 
+              if Sndmethod_choice == "A": # n (EL数) を増やす
+                  sim_params["n_ELs"] = num_len 
                 #sim_params["n_ELs"] = num_len +1 このコードを消した際の不具合がないかを調べる
 
                 
             # N (セグメント数) は固定
-            else:
-                sim_params["num_segments"] = num_len 
+              else:
+                  sim_params["num_segments"] = num_len 
                 #sim_params["num_segments"] = num_len +1 このコードを消した際の不具合がないかを調べる
 
                 
             
-            num_segments = num_len 
-            print(num_segments)#debug
+              num_segments = num_len 
+              print(num_segments)#debug
 
-            if Sndmethod_choice =="A":
-                F_listR = []
-                print("シングル")
-            else:
-                F_listR = [ [] for _ in range(num_segments)]#ラウンドとして、フィデリティーカウントの平均値を蓄える
-                print("コンプレックス")
+              if Sndmethod_choice =="A":
+                  F_listR = []
+                  print("シングル")
+              else:
+                  F_listR =  [ [] for _ in range(num_segments)]#ラウンドとして、フィデリティーカウントの平均値を蓄える
+                  print("コンプレックス")
 
             #Fiderity_count = sum(seg.storage_count for seg in segments)+num_len #num_lenはELのメモリの分のカウントこれは、Nを増やす方式にしか対応していないことに注意
-            Fidelity_counts_per_seg = [ [] for _ in range(num_segments) ]#配列を用意！！
-            mean_Fiderity = []
+              Fidelity_counts_per_seg = [ [[] for _ in range(4)] for _ in range(num_segments) ]#配列を用意！！
+              mean_Fiderity = []
             
             
 
+              for attempt in range(attempts):
+               #4 denotes first round of distillation.
+                  step_rouds = 0
+                  fail = []
+                  fail.append(0)
+                  fail.append(0)
+                  forth =0
+                  #print("debug")
+                  if Sndmethod_choice =="A":
+                    F_list_eachattempt = []
+                   
+                  else:
+                    F_list_eachattempt =  [ [] for _ in range(num_segments)]#ラウンドとして、フィデリティーカウントの平均値を蓄える
+                  
 
-            for forth in range(4):    #4 denotes first round of distillation.
+                                 
 
-
-                for attempt in range(attempts):
+                  while forth < 4: 
                     # 【重要】毎回セグメントを新品に作り直す (リセット)
+                      #print("oooo")
+                      if fail[0] != 0:
+                        F_list_eachattempt =  [ [] for _ in range(num_segments)]
+                        step_rouds = 0
+                        for k in range(4):
+                          step_counts[k].pop()
+                          #print(f"dd{k}")
+                          for i in range(num_segments):
+                              Fidelity_counts_per_seg[i][k].pop()
+                        fail[0] = 0      
+                            
 
-                    # print(f"the number of n:{sim_params["n_ELs"]:.5f}") # Removed excessive print
-                    # print(f"N:{sim_params["num_segments"]:.5f}") # Removed excessive print
 
-                    segments = [RepeaterSegment(i, sim_params["n_ELs"]) for i in range(sim_params["num_segments"]) ]
-                    step = 0
+
+                      # print(f"the number of n:{sim_params["n_ELs"]:.5f}") # Removed excessive print
+                      # print(f"N:{sim_params["num_segments"]:.5f}") # Removed excessive print
+
+                      segments = [RepeaterSegment(i, sim_params["n_ELs"]) for i in range(sim_params["num_segments"]) ] #セグメントの初期化
+                      step = 0
+                      #print("ssss")
 
 
 
                         # 1回のシミュレーション
 
-                    while True:
-                        step += 1
-                        all_complete = run_simulation(segments, sim_params,method_choice,e)
+                      while True:
+                          step += 1
+                          all_complete = run_simulation(segments, sim_params,method_choice,e)
+                          
+                        
 
+                          if all_complete and forth != 3:
+                              
+                              
 
-                        if all_complete:
+                              step_rouds +=step
+
+                              step_counts[forth].append(step)
+ 
+                              if Sndmethod_choice == "B":
+                                  current_counts = [seg.storage_count + 1 for seg in segments]#各のストレージカウントを個々で蓄える
+
+                                  for i in range(num_segments):
+                                      Fidelity_counts_per_seg[i][forth].append(current_counts[i])
+
+                              forth +=1        
+
+                              break        
+
+                          elif all_complete and forth == 3:
+                            
+                              step_rouds +=step
+                              
+
                             # ---------------------------------------------------
                             # 1. 光を出していた時間 (Generation Time)
                             # ---------------------------------------------------
 
-                            if Sndmethod_choice == "B":
-                                current_counts = [seg.storage_count + 1 for seg in segments]#各のストレージカウントを個々で蓄える
+                              if Sndmethod_choice == "B":
+                                  current_counts = [seg.storage_count + 1 for seg in segments]#各のストレージカウントを個々で蓄える
 
-                                for i in range(num_segments):
-                                    Fidelity_counts_per_seg[i].append(current_counts[i])
-
-
-                            if method_choice == "A":
-                                t_generation = (step) * param_dict.get("t_AFC")#＋1はデッドタイム
-                            else:
-                                t_generation = ((step) * param_dict.get("t_AFC")) / param_dict.get("separate")#＋1はデッドタイム
+                                  for i in range(num_segments):
+                                      Fidelity_counts_per_seg[i][forth].append(current_counts[i])
+                                      #print(Fidelity_counts_per_seg[i][forth][attempt])
 
 
+                              if method_choice == "A":
+                                  t_generation = (step_rouds+1) * param_dict.get("t_AFC")#＋1はDistillationを考慮している
+                              else:
+                                  t_generation = ((step_rouds+1) * param_dict.get("t_AFC")) / param_dict.get("separate")#＋1はデッドタイム
 
 
 
-                            t_latency_total =param_dict.get("t_CNOT") + param_dict.get("t_QR")
 
-                            # Sum the golobal_count from all segments
-                            total_golobal_count = sum(seg.golobal_count for seg in segments)
 
-                            t_elapsed = t_generation + t_latency_total #* total_golobal_count
+                              t_latency_total =4*(param_dict.get("t_CNOT") + param_dict.get("t_QR"))
+
+                          
+                              t_elapsed = t_generation + t_latency_total #* total_golobal_count
                             # print(total_golobal_count) # Removed excessive print
 
 
@@ -1345,80 +1809,166 @@ def main_loop():
 
 
                             #Fiderity_times.append(Fiderity_count)
+                              if fail[1] == 0:
+                                execution_times.append(t_elapsed)
+                              else:
+                                execution_times[attempt] += t_elapsed    
 
-                            execution_times.append(t_elapsed)
+                              if method_choice == "A":
+                                  ttrans = param_dict.get("t_QR", 0.0) + param_dict.get("t_CNOT", 0.0) + param_dict.get("t_AFC")*(sim_params["n_ELs"]-1)
+                                  eta_qst_total = prob_qr * (param_dict.get("eta_AFC") ** (sim_params["n_ELs"] - 1))
 
-                            if method_choice == "A":
-                                ttrans = param_dict.get("t_QR", 0.0) + param_dict.get("t_CNOT", 0.0) + param_dict.get("t_AFC")*(sim_params["n_ELs"]-1)
-                                eta_qst_total = prob_qr * (param_dict.get("eta_AFC") ** (sim_params["n_ELs"] - 1))
-
-                            else :
-                                ttrans = param_dict.get("t_QR", 0.0) + param_dict.get("t_CNOT", 0.0) + param_dict.get("t_AFC")
-                                eta_qst_total = prob_qr
+                              else :
+                                  ttrans = param_dict.get("t_QR", 0.0) + param_dict.get("t_CNOT", 0.0) + param_dict.get("t_AFC")
+                                  eta_qst_total = prob_qr
 
                                 # その修正した効率を使って tau を計算
                                 # 分母の log の中身: 1 - (eta_qst_total^2 * ...)
-                            tau = ((1/(sim_params["R_EPPS"]*sim_params["eta_EPPS"])) * np.log(1-(1-param_dict.get("eps"))**(1/sim_params["num_segments"])) / np.log(1 - (eta_qst_total**2) * (prob_el**sim_params["n_ELs"]) * (prob_ec**(sim_params["n_ELs"]-1)))) * sim_params["separate"] + ttrans
+                              tau = ((1/(sim_params["R_EPPS"]*sim_params["eta_EPPS"])) * np.log(1-(1-param_dict.get("eps"))**(1/sim_params["num_segments"])) / np.log(1 - (eta_qst_total**2) * (prob_el**sim_params["n_ELs"]) * (prob_ec**(sim_params["n_ELs"]-1)))) * sim_params["separate"] + ttrans
                             #print(tau)
                             #tau = (1/0.95 + ((1+sim_params["n_ELs"])/0.05))* (param_dict.get("eta_AFC"))
                             #prob_el, prob_afc, prob_qr, prob_ec, tau = probs
 
                             # print(t_elapsed) # Removed excessive print
 
-                            if tau-t_elapsed >= 0:
-                                probabilty_check.append(1)
-                            else:
-                                probabilty_check.append(0)
+                              if tau-t_elapsed >= 0:
+                                  probabilty_check.append(1)
+                              else:
+                                  probabilty_check.append(0)
 
-                            step_counts.append(step)
-                            break
+
+                              step_counts[forth].append(step)
+
+
+
+
+
+                              if Sndmethod_choice == "B":
+                                for i in range(num_segments):
+                                  for forth in range(4):
+                        
+                                    #mean_Fiderity[i].append(np.mean(Fidelity_counts_per_seg[i]))#intendをここにしないと,attemptsと、for(4)に入らない
+                                    F_list_eachattempt[i].append(Fidelity_counts_per_seg[i][forth][attempt])
+
+                              else:
+                                  F_list_eachattempt.append(1)
+
+
+
+
+                              #---　累積ステップの計算 ---
+                              if Sndmethod_choice == "B":
+                                        # F_listR[0] ～ [2] までを処理したいので range(3)
+
+                                for k in range(num_len):
+                                    # step_R の [i+1] から [3] までを合計して足す
+                                    # スライスは「最後の数字を含まない」ので、3まで入れたければ 4 と書く
+                                    for i in range(3):    
+                                        #print(step_counts[i])
+                                        #F_list_eachattempt[k][i] += sum(step_counts[i+1 : 4][attempt])
+                                        F_list_eachattempt[k][i] += sum(step_counts[j][attempt] for j in range(i+1, 4))
+                
+                              else:
+
+                                for i in range(3):    
+
+                                  F_list_eachattempt[i] += sum(step_counts[i+1 : 4])
+
+                              
+
+                              
+
+                              #print("debug")
+                              Disproba = Distilation_caluculation_A(e,F_list_eachattempt,Sndmethod_choice,num_len,mode="prob")
+                              
+
+                              if check_success(Disproba):#F_listを定義してからでないと行けない
+                                  forth +=1
+                                  print(f"成功{forth}")
+                                  Fidelity_for_histgram_Hop.append(Distilation_caluculation_A(e,F_list_eachattempt,Sndmethod_choice,num_len,mode="normal"))#Hop by Hopに限る
+
+                                  
+                                  
+                                  break
+                            
+                              else:
+                                  fail[0] +=1
+                                  fail[1] += 1
+                                  forth = 0
+                                  print(f"失敗{fail}回目")
+                                  break#もう一度simulationやらせる処理 
+
+                            # #シュミレーションの処理
+                            # if check_success(Distilation_caluculation_A(e,F_list,Sndmethod_choice,num_len,mode=prob)):#F_listを定義してからでないと行けない
+                            #     break
+                            
+                            # else:
+                            #     pass#もう一度simulationやらせる処理
+
+
+
 
                         # 無限ループ防止 (適当な上限)
-                        if step > 1000000000:
-                            step_counts.append(step) # 失敗扱い
-                            break
+                          if step > 100000000000000:
+                              step_counts[forth].append(step) # 失敗扱い
+                              break
 
                     # 進捗表示 (10%ごと)
-                    if (attempt + 1) % (attempts // 10 + 1) == 0:
-                        print(".", end="")
+                      if (attempt + 1) % (attempts // 10 + 1) == 0:
+                          print(".", end="")
 
 
 
 
 
-                #------Distilliationの要素構築------#
-                mean_step = np.mean(step_counts)
-                step_R.append(mean_step)
+                #------Distilliation（平均）の要素構築------#
+              mean_ap.append(np.mean(execution_times))  
+              for i in range(4):
+                step_R.append(np.mean(step_counts[i]))
 
-                if Sndmethod_choice == "B":
-                    for i in range(num_segments):
+              if Sndmethod_choice == "B":
+
+                for i in range(num_segments):
+                  for forth in range(4):
                         
-                        #mean_Fiderity[i].append(np.mean(Fidelity_counts_per_seg[i]))#intendをここにしないと,attemptsと、for(4)に入らない
-                        F_listR[i].append(np.mean(Fidelity_counts_per_seg[i]))
+                            #mean_Fiderity[i].append(np.mean(Fidelity_counts_per_seg[i]))#intendをここにしないと,attemptsと、for(4)に入らない
+                     F_listR[i].append(np.mean(Fidelity_counts_per_seg[i][forth]))
 
-                else:
-                    F_listR.append(1)        
+              else:
+                  F_listR.append(1)        
 
             
                 
 
 
         
-            print(F_listR)#デバック
-            if Sndmethod_choice == "B":
+            #print(F_listR)#デバック
+              if Sndmethod_choice == "B":
                         # F_listR[0] ～ [2] までを処理したいので range(3)
-                for k in range(num_len):
+                  for k in range(num_len):
                     # step_R の [i+1] から [3] までを合計して足す
                     # スライスは「最後の数字を含まない」ので、3まで入れたければ 4 と書く
-                    for i in range(3):    
+                      for i in range(3):    
  
-                        F_listR[k][i] += sum(step_R[i+1 : 4])
-                        print(f"k={k}, i={i}, F_listRのk階の部屋数={len(F_listR[k])}")
+                          F_listR[k][i] += sum(step_R[i+1 : 4])
+                          print(f"k={k}, i={i}, F_listRのk階の部屋数={len(F_listR[k])}")
  
-            else:
-                for i in range(3):    
+              else:
+                  for i in range(3):    
 
-                        F_listR[i] += sum(step_R[i+1 : 4])        
+                          F_listR[i] += sum(step_R[i+1 : 4])     
+
+              break
+
+            # --- ディスティレーションによる失敗確率の定義　---
+            #   Disproba = Distilation_caluculation_A(e,F_listR,Sndmethod_choice,num_len,mode="prob")
+            #   if check_success(Disproba):#F_listを定義してからでないと行けない
+            #       break
+            
+            #   else:
+            #       fail +=1
+            #       print(f"失敗{fail}回目")
+            #       pass#もう一度simulationやらせる処理                
 
         
     # --- 計算ロジック (提供された式) ---
@@ -1433,9 +1983,9 @@ def main_loop():
                     F_index.append(q1) 
             
             else:
-                for i in range(len(F_listR)):
-                    q1 = (1 - 0.05) * (1 - 0.05)**(num_len)*(1-0.05)**(num_len-1)* (1-0.05)**(num_len-1)* (1-(1/2)*(1 - np.exp(-(F_listR[i]*10**(-4))/e)))
-                    F_index.append(q1)
+               for i in range(len(F_listR)):
+                     q1 = (1 - 0.05) * (1 - 0.05)**(num_len)*(1-0.05)**(num_len-1)* (1-0.05)**(num_len-1)* (1-(1/2)*(1 - np.exp(-(F_listR[i]*10**(-4))/e)))
+                     F_index.append(q1)
             
             print(f"F_index{len(F_index)}")
             befor_Fiderity = np.prod(F_index)
@@ -1506,7 +2056,7 @@ def main_loop():
           tau_list.append(tau)
 
           mean_Fiderity = np.mean(Fiderity_times)
-          mean_time = np.mean(execution_times)
+          mean_time = np.sum(mean_ap)
           time_95_percentile = np.percentile(execution_times, 95)
           edr_95 = 1.0 / time_95_percentile
           std_dev_time = np.std(execution_times) # 標準偏差
@@ -1558,35 +2108,16 @@ def main_loop():
           # プロッター呼び出し (y_dataは配列にする)
 
           #モンテカルロ法と解析解の比較
-        #   plt.errorbar(x_data, y_data, y_err, fmt='o', capsize=5,ecolor='red', color='blue', label='EDR with Time-STD Error')
-        #   plt.plot(x_data, tau_list, color='black', marker='o', linestyle='None', label='LQUOM Analytical')
+          plt.errorbar(x_data, y_data, y_err, fmt='o', capsize=5,ecolor='red', color='blue', label='EDR with Time-STD Error')
+          plt.plot(x_data, tau_list, color='black', marker='o', linestyle='None', label='LQUOM Analytical')
 
-        #   plt.grid()
-        #   plt.legend()
-        #   plt.show()
+          plt.grid()
+          plt.legend()
+          plt.show()
 
-          #フィデリティーによるメモリの比較
-        #   plt.figure
-        #   plt.plot(x_data,memory_A,color='red',marker='o',linestyle = 'None',label='Memory_A Vlue')
-        #   plt.plot(x_data,memory_B,color='blue',marker='o',linestyle = 'None',label='Memory_B Vlue')
-
-        #   plt.grid()
-        #   plt.legend()
-        #   plt.show()
+        
           
 
-
-        #   x_data2 = np.array(x_list2)
-        #   y_data2 = np.array(y_list2)
-
-        #   y_data3 = np.array(y_list3)
-
-          #dlab2 = ["STDplot"] # ラベル
-        #   plt.figure() # <--- これで「新しい白紙」を用意する！
-        #   plotter(x_data2, y_data2, xlabel="ARC-R distance (km)", dlabels=dlab2)
-          #dlab3 = ["EDR95plot"]
-        #   plt.figure() # <--- これで「新しい白紙」を用意する！
-        #   plotter(x_data, y_data3, xlabel="ARC-R distance (km)", dlabels=dlab3)
 
 
           #ヒストグラム
@@ -1594,16 +2125,7 @@ def main_loop():
           #plt.figure(figsize=(10, 5))
           #plt.hist(step_counts, bins=20, color='skyblue', edgecolor='black', alpha=0.7)
 
-          # 平均値のライン
-          #plt.axvline(mean_step, color='red', linestyle='dashed', linewidth=1.5, label=f'Mean: {mean_step:.1f}')
-
-        #   plt.title(f"Distribution of Steps to Success (Last Trial)")
-        #   plt.xlabel("Steps")
-        #   plt.ylabel("Frequency")
-        #   plt.legend()
-        #   plt.grid(axis='y', alpha=0.5)
-          #plt.show()
-          #Debag
+         
           if method_choice == "A":
             print(f"自分の値{mean_list[0]}")
             print(f"理想値{(1/(prob_el*prob_qr**2))*param_dict['t_AFC']}")
@@ -1705,6 +2227,9 @@ def main_loop():
 
           # 最後にグラフを表示！
           plt.show()
+
+          histgram(execution_times,Fidelity_for_histgram_Hop,attempts)
+          #heatmap_analysis(execution_times, Fidelity_for_histgram_Hop, attempts)
 
 
 
