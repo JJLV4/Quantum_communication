@@ -1111,7 +1111,7 @@ def Distilation_caluculation_A(e,F_total,Sndmethod_choice,num_len,mode):
     return Total_Distilation_Fidelity - F_max
   elif mode =="prob":
     print(f"Distillation{prob}")
-    print(f"Hop by Hop {prob**(num_len)}")
+    print(f"Hop by Hop {prob}")#prob**num_lenはメモリによって変わることに注意マトリョーシカプロトコルより、N=1のみで考えた
     return prob**(num_len)  #ベルスワッピングの成功確率を1/2とした場合  
   else:
     return Total_Distilation_Fidelity
@@ -1789,9 +1789,9 @@ def main_loop():
 
 
                               if method_choice == "A":
-                                  t_generation = (step_rouds) * param_dict.get("t_AFC")#＋1はデッドタイム
+                                  t_generation = (step_rouds+1) * param_dict.get("t_AFC")#＋1はDistillationを考慮している
                               else:
-                                  t_generation = ((step_rouds) * param_dict.get("t_AFC")) / param_dict.get("separate")#＋1はデッドタイム
+                                  t_generation = ((step_rouds+1) * param_dict.get("t_AFC")) / param_dict.get("separate")#＋1はデッドタイム
 
 
 
