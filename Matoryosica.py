@@ -178,6 +178,21 @@ def paramset_memory():
     vals=memory_input
     return vals
 
+def bellswaping_Hop(Fidelity):
+    step = 0
+    for i in range(len(Fidelity)-1):
+        if step == 0:
+            Ftotal = Fidelity[i]*Fidelity[i+1]+((1-Fidelity[i])*(1-Fidelity[i+1]))/3
+            step +=1
+        else:
+            Ftotal = Ftotal*Fidelity[i+1] + ((1-Ftotal)*(1-Fidelity[i+1]))/3
+
+    return Ftotal            
+
+def plotter_lneth(y_Fidelity,y_time,x_data):
+    
+    plt.plot(x_data, y_Fidelity, color='black', marker='o', linestyle='None', label='LQUOM Analytical')
+
 def main_loop():
     
     imp data #仮の変数として置いておく！Google Driveから後で持ってくる
@@ -193,9 +208,14 @@ def main_loop():
     memory = paramset_memory()
     simdata = [[] for i in range(len(data))]
     Fidelity = []
+    Total_Fidelity = []
+    time = []
+    mean_Fidelity = []
+    mean_time = []
+    
     #----------------------
 
-    for num_len in range(n_ARC):
+    for num_len in range(n_ARC):#データの取得
         for attempt in range(attempts):
             step = 0
             compare = []
@@ -205,12 +225,27 @@ def main_loop():
                 all_complete,simdata,compare,fail_id = run_simulation(segments,data,simdata,memory,compare,fail_id,step)
                 step += 1
                 if all_complete:
-                    time = max(row[0] for row in simdata)
+                    time.append(max(row[0] for row in simdata))
                     for i in range(len(simdata)):
                         Fidelity.append(simdata[i][1])
-                    #next task is incorporate bellswaping function    
 
-
+                    Total_Fidelity.append(bellswaping_Hop(Fidelity))    
+                    
                     break
 
+        mean_Fidelity.append(np.mean(Total_Fidelity))
+        mean_time.append(np.mean(time))
+
+    
+
+
+
+    plotter_lneth(mean_Fidelity,mean_time)
+
+
+
+
+
+    
+    
 
