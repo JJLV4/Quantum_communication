@@ -191,7 +191,14 @@ def bellswaping_Hop(Fidelity):
 
 def plotter_lneth(y_Fidelity,y_time,x_data):
     
-    plt.plot(x_data, y_Fidelity, color='black', marker='o', linestyle='None', label='LQUOM Analytical')
+    plt.figure(figsize=(10, 5))
+    plt.plot(x_data, y_Fidelity, color='blue', marker='o', linestyle='None', label='Fidelity')
+    plt.show
+
+    plt.figure(figsize=(10, 5))
+    plt.plot(x_data,y_time,color='blue',marker='o',linestyle = 'None',label='entangurument time')
+    plt.show
+
 
 def main_loop():
     
@@ -212,7 +219,8 @@ def main_loop():
     time = []
     mean_Fidelity = []
     mean_time = []
-    
+    x_data = []
+
     #----------------------
 
     for num_len in range(n_ARC):#データの取得
@@ -232,6 +240,10 @@ def main_loop():
                     Total_Fidelity.append(bellswaping_Hop(Fidelity))    
                     
                     break
+        
+        
+        x_data.append(num_len*20*n_ELs)
+
 
         mean_Fidelity.append(np.mean(Total_Fidelity))
         mean_time.append(np.mean(time))
@@ -240,7 +252,7 @@ def main_loop():
 
 
 
-    plotter_lneth(mean_Fidelity,mean_time)
+    plotter_lneth(mean_Fidelity,mean_time,x_data)
 
 
 
