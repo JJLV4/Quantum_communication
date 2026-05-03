@@ -50,22 +50,6 @@ class RepeaterSegment:
 
         return self.ARCvalue   
         
-
-
-
-
-
-
-    def reset(self):
-        self.qstR_states = [False] * (self.n_els - 1)
-        self.qstL_states = [False] * (self.n_els - 1)
-        self.el_states = [False] * self.n_els
-        self.ec_states = [False] * (self.n_els - 1)
-        self.is_complete = False
-        self.current_bucket_idx = 0
-        self.global_swap_done = False         
-
-
 def storage_time(simdata,memory,compare,fail_id,step):
     new_time=[[] for i in range(fail_id)]
     fail_count = 0
@@ -79,11 +63,17 @@ def storage_time(simdata,memory,compare,fail_id,step):
         if compare[i] > memory:
             fail_id.append(i)
             compare[i] = 0 
+            
     else:#2週目以降
       max_next = []
+      
+
       for i in range(len(fail_id)):
         new_time.append(simdata[fail_id[i]])  
       max_next = max(row[0] for row in new_time)
+
+      
+
       for i in range(len(simdata)):
           if i == fail_id[fail_count]:
               compare[i] = max_next - new_time[i]
@@ -191,18 +181,18 @@ def bellswaping_Hop(Fidelity):
 
 def plotter_lneth(y_Fidelity,y_time,x_data):
     
-    plt.figure(figsize=(10, 5))
-    plt.plot(x_data, y_Fidelity, color='blue', marker='o', linestyle='None', label='Fidelity')
-    plt.show
+  plt.figure(figsize=(10, 5))
+  plt.plot(x_data, y_Fidelity, color='blue', marker='o', linestyle='None', label='Fidelity')
+  plt.show()
 
-    plt.figure(figsize=(10, 5))
-    plt.plot(x_data,y_time,color='blue',marker='o',linestyle = 'None',label='entangurument time')
-    plt.show
+  plt.figure(figsize=(10, 5))
+  plt.plot(x_data,y_time,color='blue',marker='o',linestyle = 'None',label='entangurument time')
+  plt.show()
 
 
 def main_loop():
     
-    imp data #仮の変数として置いておく！Google Driveから後で持ってくる
+    data = 'G:/マイドライブ/研究データ/simulation_database.npy' 
 
     attempts_input = input('How many attempts (Enter number, e.g., 100): ')
     if not attempts_input.isdigit():
@@ -257,7 +247,8 @@ def main_loop():
 
 
  
-
+if __name__ == "__main__":
+    main_loop()
     
     
 
