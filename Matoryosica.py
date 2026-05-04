@@ -44,49 +44,79 @@ class RepeaterSegment:
 
         if self.ARCstate == False:
            self.ARCvalue = self.value_assign(data)
+           print(f"{self.ARCvalue}debug")
            self.ARCstate = True
         else:
             pass   
 
         return self.ARCvalue   
         
-def storage_time(simdata,memory,compare,fail_id,step):
-    new_time=[[] for i in range(fail_id)]
+def storage_time(simdata,memory,compare,fail_id,step,total_time,pileup_data):
+    
     fail_count = 0
 
 
     if step == 0:#1週目
-      max =[]
-      max = max(row[0] for row in simdata)
+      max_list =[]
+      max_list = max(row[0] for row in simdata)
       for i in range(len(simdata)):
-        compare.append(max - simdata[i][0])
+        compare.append(max_list - simdata[i][0])
+        pileup_data.append(simdata[i][0])
         if compare[i] > memory:
             fail_id.append(i)
-            compare[i] = 0 
+            #compare[i] = 0 #this code is for the safety reason to apply Fidelity caluculation
+
+      total_time =max_list      
             
     else:#2週目以降
-      max_next = []
+      
       
 
-      for i in range(len(fail_id)):
-        new_time.append(simdata[fail_id[i]])  
-      max_next = max(row[0] for row in new_time)
-
-      
+      max_list = []
+      max_list = max(pileup_data)  #identify max value of formerdata
+   
 
       for i in range(len(simdata)):
-          if i == fail_id[fail_count]:
-              compare[i] = max_next - new_time[i]
-              fail_count+=1
+          if not fail_id or len(fail_id) > i:
+              pass
+              
+          elif i == fail_id[fail_count]:
+            pileup_data = simdata[i][0]+pileup_data[i] + 1 #sumarize total time for new data
+            fail_count += 1
           else:
-              compare[i] += max_next
-      
+              print("somethingwrong")
+              pass  
+          
+      max_resuccess_total_time = max(pileup_data)#identify max value of semarized total time
+
+      if max_resuccess_total_time == max_list:#if there is no lager value than formerdata,there is only max value equal to the former max
+        fail_count = 0
+        for i in range(len(simdata)):
+              if not fail_id or len(fail_id) > i:
+                pass
+              elif i == fail_id[fail_count]:
+                  compare[i] = max_list - pileup_data[0] 
+              else:
+                  print("somethingwrong")
+                  pass #this is effected former results    
+      #tatal_time stays formertime
+
+      elif  max_resuccess_total_time > max_list:
+        for i in range(len(simdata)):
+            compare[i] = max_resuccess_total_time - pileup_data[0] 
+
+      else:
+          print("something wrong")        
+          
+      total_time = max_resuccess_total_time
+
+
       fail_id = [] #2回目以降新しいfail_idを組み込む為のコード
 
       for i in range(len(simdata)):
         if compare[i] > memory:
            fail_id.append(i)
-           compare[i]=0
+           #compare[i]=0
            
                       
 
@@ -94,7 +124,7 @@ def storage_time(simdata,memory,compare,fail_id,step):
 
 
 
-    return compare,fail_id
+    return compare,fail_id,total_time,pileup_data
 
 
 def Distillation(compare,memory,simdata,fail_id):
@@ -102,10 +132,13 @@ def Distillation(compare,memory,simdata,fail_id):
     fail_count = 0
     for i in range(len(simdata)):
         original_time.append(-memory*np.log((2*simdata[i][1]/((0.95)**2))-1))
-        if i != fail_id[fail_count]:
-            simdata[i][1] = (1 - 0.05) * (1 - 0.05) * (1 - (1/2) * (1 - np.exp(-(original_time[i]+compare[i]) / memory)))
-        else:
-            pass#ここでsimdataを初期化するか迷ったが、simulation関数で置き換えているのでやらなくて良い！
+        if not fail_id:
+            simdata[i][1] = (1 - 0.05) * (1 - 0.05) * (1 - (1/2) * (1 - np.exp(-(original_time[i]) / memory)))
+        else:    
+            if i != fail_id[fail_count]:
+                simdata[i][1] = (1 - 0.05) * (1 - 0.05) * (1 - (1/2) * (1 - np.exp(-(original_time[i]+compare[i]) / memory)))
+            else:
+                pass#ここでsimdataを初期化するか迷ったが、simulation関数で置き換えているのでやらなくて良い！
                 
 
     
@@ -114,29 +147,41 @@ def Distillation(compare,memory,simdata,fail_id):
    
           
 
-def run_simulation(segments,data,simdata,memory,compare,fail_id,step):
+def run_simulation(segments,data,simdata,memory,compare,fail_id,step,totaltime,pileup_data):
     #simdataに対してデコヒーレンスを考えて上げる。デコヒーレンスに関してはcompareの部分をmax以外でかけて上げる。このとき、failした物はデコヒーレンスをかけたりかけなかったりするが、それに関してはデコヒーレンスの関数を作ってから考える！！
 
     count = 0
     fail_count = 0
 
-       
+    print(f"debug={step}={len(segments)}")
+
     for seg in segments:
        if step == 0:
+           print("debug")
            flag=0
            simdata.append(seg.step(data,flag)) 
-       else:    
-        if fail_id[fail_count] == count:
-            flag = 1
-            fail_count += 1
+       else:
+        if  not fail_id or len(fail_id) < count+1:#consider if there is no fail
+            print("pass")
+            flag =0
+            pass
+
         else:
-            flag =0        
-        simdata[count] = seg.step(data,flag)     
+            print(f"debugid{fail_id[fail_count]}and{count}")        
+            if fail_id[fail_count] == count:
+                flag = 1
+                fail_count += 1
+            else:
+                flag =0        
+        simdata[count][count] = seg.step(data,flag) 
+           
        count += 1
+
+    print(simdata)   
        
 
 
-    compare,fail_id = storage_time(simdata,memory,compare,fail_id,step)
+    compare,fail_id,totaltime,pileup_data = storage_time(simdata,memory,compare,fail_id,step,totaltime,pileup_data)
 
 
     simdata = Distillation(compare,memory,simdata,fail_id)
@@ -151,7 +196,7 @@ def run_simulation(segments,data,simdata,memory,compare,fail_id,step):
         all_done = False    
 
     
-    return all_done,simdata,compare,fail_id     
+    return all_done,simdata,compare,fail_id,totaltime,pileup_data     
 
 def paramset_ARC():
     MaxARCs_input = int(input('How many max ARCs (Enter number, e.g., 100): '))
@@ -192,7 +237,22 @@ def plotter_lneth(y_Fidelity,y_time,x_data):
 
 def main_loop():
     
-    data = 'G:/マイドライブ/研究データ/simulation_database.npy' 
+    # ユーザーのホームディレクトリ（C:/Users/ユーザー名）を自動取得
+    home = os.path.expanduser("~")
+    
+    # ホームディレクトリ以下の相対パスを指定
+    # 例：デスクトップの「research」フォルダにある場合
+    relative_path = "Desktop\インターン\simulation_database.npy"
+    
+    # パスを結合
+    full_path = os.path.join(home, relative_path)
+
+    try:
+        data = np.load(full_path)
+        print(f"✅ ローカルCドライブからロード完了: {full_path}")
+    except FileNotFoundError:
+        print(f"❌ ファイルが見つかりません。パスを確認してください: {full_path}")
+        return
 
     attempts_input = input('How many attempts (Enter number, e.g., 100): ')
     if not attempts_input.isdigit():
@@ -203,7 +263,6 @@ def main_loop():
     n_ARC =  paramset_ARC()
     n_ELs =  paramset_ELs()
     memory = paramset_memory()
-    simdata = [[] for i in range(len(data))]
     Fidelity = []
     Total_Fidelity = []
     time = []
@@ -216,21 +275,30 @@ def main_loop():
     for num_len in range(n_ARC):#データの取得
         for attempt in range(attempts):
             step = 0
-            compare = []
+            compare = [] #consider as waiting time
             fail_id =[]
-            segments = [RepeaterSegment(i, n_ELs) for i in range(num_len) ]
+            segments = [RepeaterSegment(i, n_ELs) for i in range(num_len + 1) ]
+            totaltime = []
+            # pileup_data = [[] for i in range(num_len)]
+            # simdata = [[] for i in range(num_len)]
+            pileup_data = [] #this is singl data so this consider only time
+            simdata = []
+            print("succed")
             while True:
-                all_complete,simdata,compare,fail_id = run_simulation(segments,data,simdata,memory,compare,fail_id,step)
+                all_complete,simdata,compare,fail_id,totaltime,pileup_data = run_simulation(segments,data,simdata,memory,compare,fail_id,step,totaltime,pileup_data)
                 step += 1
                 if all_complete:
-                    time.append(max(row[0] for row in simdata))
+                    time.append(totaltime)
                     for i in range(len(simdata)):
                         Fidelity.append(simdata[i][1])
-
-                    Total_Fidelity.append(bellswaping_Hop(Fidelity))    
+                    if num_len+1 >= 2: 
+                        Total_Fidelity.append(bellswaping_Hop(Fidelity))
+                    else:
+                        Total_Fidelity.append(simdata[i][1])        
                     
                     break
-        
+
+            
         
         x_data.append(num_len*20*n_ELs)
 
