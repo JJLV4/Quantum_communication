@@ -38,13 +38,13 @@ class RepeaterSegment:
 
     def step(self,data,flag):
         if flag == 1:
-            self.ARCstate == False
+            self.ARCstate = False
         else:
             pass
 
         if self.ARCstate == False:
            self.ARCvalue = self.value_assign(data)
-           print(f"{self.ARCvalue}debug")
+           #print(f"{self.ARCvalue}debugだお")
            self.ARCstate = True
         else:
             pass   
@@ -77,14 +77,17 @@ def storage_time(simdata,memory,compare,fail_id,step,total_time,pileup_data):
    
 
       for i in range(len(simdata)):
-          if not fail_id or len(fail_id) > i:
+          #print(f"{fail_id[fail_count]} and now value is {i}") #this code is for debug but may couse erro because of out of list
+          if not fail_id or len(fail_id) < fail_count+1:
+              
               pass
               
           elif i == fail_id[fail_count]:
-            pileup_data = simdata[i][0]+pileup_data[i] + 1 #sumarize total time for new data
+            pileup_data[i] = simdata[i][0]+pileup_data[i] + 1 #sumarize total time for new data
             fail_count += 1
+            #print("the confirm of the change of pileup_data")
           else:
-              print("somethingwrong")
+              #print("somethingwrong")
               pass  
           
       max_resuccess_total_time = max(pileup_data)#identify max value of semarized total time
@@ -92,18 +95,18 @@ def storage_time(simdata,memory,compare,fail_id,step,total_time,pileup_data):
       if max_resuccess_total_time == max_list:#if there is no lager value than formerdata,there is only max value equal to the former max
         fail_count = 0
         for i in range(len(simdata)):
-              if not fail_id or len(fail_id) > i:
+              if not fail_id or len(fail_id) < fail_count+1:
                 pass
               elif i == fail_id[fail_count]:
-                  compare[i] = max_list - pileup_data[0] 
+                  compare[i] = max_list - pileup_data[i] 
               else:
-                  print("somethingwrong")
+                  #print("somethingwrong")
                   pass #this is effected former results    
       #tatal_time stays formertime
 
       elif  max_resuccess_total_time > max_list:
         for i in range(len(simdata)):
-            compare[i] = max_resuccess_total_time - pileup_data[0] 
+            compare[i] = max_resuccess_total_time - pileup_data[i] 
 
       else:
           print("something wrong")        
@@ -153,27 +156,28 @@ def run_simulation(segments,data,simdata,memory,compare,fail_id,step,totaltime,p
     count = 0
     fail_count = 0
 
-    print(f"debug={step}={len(segments)}")
+    #print(f"debug={step}={len(segments)}")
 
     for seg in segments:
        if step == 0:
-           print("debug")
+           #print("debug")
            flag=0
            simdata.append(seg.step(data,flag)) 
        else:
-        if  not fail_id or len(fail_id) < count+1:#consider if there is no fail
-            print("pass")
+        if  not fail_id or len(fail_id) < fail_count+1:#consider if there is no fail
+            #print("pass")
             flag =0
             pass
 
         else:
-            print(f"debugid{fail_id[fail_count]}and{count}")        
+            #print(f"debugid{fail_id[fail_count]}and{count}")        
             if fail_id[fail_count] == count:
                 flag = 1
                 fail_count += 1
+                simdata[count] = seg.step(data,flag) 
             else:
                 flag =0        
-        simdata[count][count] = seg.step(data,flag) 
+        
            
        count += 1
 
@@ -228,10 +232,20 @@ def plotter_lneth(y_Fidelity,y_time,x_data):
     
   plt.figure(figsize=(10, 5))
   plt.plot(x_data, y_Fidelity, color='blue', marker='o', linestyle='None', label='Fidelity')
+  plt.title('Quantum Entanglement Fidelity', fontsize=14, fontweight='bold') # 題名
+  plt.xlabel('distance', fontsize=12) # 横軸ラベル
+  plt.ylabel('Fidelity', fontsize=12)    # 縦軸ラベル
+  plt.grid(True, linestyle='--', alpha=0.7) # グリッド線
+  plt.legend(loc='best') # 凡例
   plt.show()
 
   plt.figure(figsize=(10, 5))
   plt.plot(x_data,y_time,color='blue',marker='o',linestyle = 'None',label='entangurument time')
+  plt.title('Quantum Entanglement Time', fontsize=14, fontweight='bold') # 題名
+  plt.xlabel('distance', fontsize=12) # 横軸ラベル
+  plt.ylabel('Time', fontsize=12)    # 縦軸ラベル
+  plt.grid(True, linestyle='--', alpha=0.7) # グリッド線
+  plt.legend(loc='best') # 凡例
   plt.show()
 
 
@@ -300,7 +314,7 @@ def main_loop():
 
             
         
-        x_data.append(num_len*20*n_ELs)
+        x_data.append((num_len+1)*20*n_ELs)
 
 
         mean_Fidelity.append(np.mean(Total_Fidelity))
