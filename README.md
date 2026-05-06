@@ -1,9 +1,13 @@
 Quantum communication simulation code
-*The copyright is applyed to the creater who made code described below respectebly.
-  
---analystical_solution.py:Author Jianyao Jin---
+This project is a modified version of the original simulator developed by Jianyao Jin during an internship at LQUOM, Inc.
+
+Original Repository:https://gitlab.com/jianyaojin/lquom-simulations
+
+--analystical_solution.py:Author Jianyao Jin---()
 This code is mathematical simulation by Jianyao Jin.And this code's simulation is based on the thesis Investigating Entanglement Distribution Rates for Multi Platform First Generation Quantum Repeater Networks.
 We updated this code to use more practically! So codes described below is inspired by Jianyao Jin and thesis.
+
+
 
 ---Montecallo_simplest_ver.py:Launched Feb 2026 21:03 Author joe---
 This code is simulating quantum communication more strictly than matemathical approach by reproduceing realistic architechre on Python.
