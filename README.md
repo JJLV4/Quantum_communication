@@ -1,6 +1,6 @@
 Quantum communication simulation code
 *The copyright is applyed to the creater who made code described below respectebly.
-
+  
 --analystical_solution.py:Author Jianyao Jin---
 This code is mathematical simulation by Jianyao Jin.And this code's simulation is based on the thesis Investigating Entanglement Distribution Rates for Multi Platform First Generation Quantum Repeater Networks.
 We updated this code to use more practically! So codes described below is inspired by Jianyao Jin and thesis.
