@@ -1,4 +1,4 @@
-Quontum communication simulation code
+Quantum communication simulation code
 *The copyright is applyed to the creater who made code described below respectebly.
 
 --analystical_solution.py:Author Jianyao Jin---
