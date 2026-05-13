@@ -276,7 +276,48 @@ def main_loop():
 
 
     p_ARC = ((eta_qst_total)**2)*((prob_el)**(sim_params["n_ELs"]))*(prob_ec**(sim_params["n_ELs"]-1))
-    p_D =  
+    
+
+
+
+    #データベースのインポート
+    # ユーザーのホームディレクトリ（C:/Users/ユーザー名）を自動取得
+    home = os.path.expanduser("~")
+    
+    # ホームディレクトリ以下の相対パスを指定
+    # 例：デスクトップの「research」フォルダにある場合
+    relative_path = "Desktop\研究データ\Distillation_suc_probability.npy"
+    
+    # パスを結合
+    full_path = os.path.join(home, relative_path)
+
+    try:
+        p_D = np.load(full_path)
+        print(f"✅ ローカルCドライブからロード完了: {full_path}")
+    except FileNotFoundError:
+        print(f"❌ ファイルが見つかりません。パスを確認してください: {full_path}")
+        return
+
+
+
+    relative_path2 = "Desktop\研究データ\Before_Distillation.npy"
+    
+    # パスを結合
+    full_path2 = os.path.join(home, relative_path2)
+
+    try:
+        t_4 = np.load(full_path2)
+        print(f"✅ ローカルCドライブからロード完了: {full_path2}")
+    except FileNotFoundError:
+        print(f"❌ ファイルが見つかりません。パスを確認してください: {full_path2}")
+        return
+  
+
+    w_dis = 1/t_4
+
+
+    p_ARC4 = 1 - ((1-p_ARC)**(sim_params["eta_EPPS"]*(tau - ttrans))) - sim_params["eta_EPPS"]*(tau - ttrans)*p_ARC*(1-p_ARC)**(sim_params["eta_EPPS"]*(tau - ttrans)-1) - ((sim_params["eta_EPPS"]*(tau - ttrans))*(sim_params["eta_EPPS"]*(tau - ttrans)-1)/2)*(p_ARC**2)*((1-p_ARC)**(sim_params["eta_EPPS"]*(tau - ttrans)-2))-((sim_params["eta_EPPS"]*(tau - ttrans))(sim_params["eta_EPPS"]*(tau - ttrans)-1)(sim_params["eta_EPPS"]*(tau - ttrans)-2)/6)*(p_ARC**3)*((1-p_ARC)**(sim_params["eta_EPPS"]*(tau - ttrans)-3))
+    p_dis = 1 - (1-p_D)**(w_dis(tau))
 
 
 

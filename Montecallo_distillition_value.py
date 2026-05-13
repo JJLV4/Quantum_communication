@@ -1112,7 +1112,7 @@ def Distilation_caluculation_A(e,F_total,Sndmethod_choice,num_len,mode):
   elif mode =="prob":
     print(f"Distillation{prob}")
     print(f"Hop by Hop {prob}")#prob**num_lenはメモリによって変わることに注意マトリョーシカプロトコルより、N=1のみで考えた
-    return prob**(num_len)  #ベルスワッピングの成功確率を1/2とした場合  
+    return prob**(num_len)  
   else:
     return Total_Distilation_Fidelity
 
@@ -1636,6 +1636,8 @@ def main_loop():
           resultsC = []
           mean_ap = []
           Fidelity_for_histgram_Hop = []
+          save_Dispro = []
+          time_before_distillation = []
           
 
 
@@ -1811,6 +1813,8 @@ def main_loop():
                             #Fiderity_times.append(Fiderity_count)
                               if fail[1] == 0:
                                 execution_times.append(t_elapsed)
+                                time_before_distillation.append(t_elapsed)
+
                               else:
                                 execution_times[attempt] += t_elapsed    
 
@@ -1880,7 +1884,7 @@ def main_loop():
 
                               #print("debug")
                               Disproba = Distilation_caluculation_A(e,F_list_eachattempt,Sndmethod_choice,num_len,mode="prob")
-                              
+                              p = Disproba
 
                               if check_success(Disproba):#F_listを定義してからでないと行けない
                                   forth +=1
@@ -1917,7 +1921,11 @@ def main_loop():
                       if (attempt + 1) % (attempts // 10 + 1) == 0:
                           print(".", end="")
 
+                                 
+                  save_Dispro.append(p)
 
+              np.save("Distillation_suc_probability.npy",np.mean(save_Dispro))    
+              np.save("Before_Distillation.npy",np.mean(time_before_distillation))
 
 
 
