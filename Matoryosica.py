@@ -258,13 +258,14 @@ def difference(mean_time,data2):
 
 def main_loop():
     
+    
     #データベースのインポート
     # ユーザーのホームディレクトリ（C:/Users/ユーザー名）を自動取得
     home = os.path.expanduser("~")
     
     # ホームディレクトリ以下の相対パスを指定
     # 例：デスクトップの「research」フォルダにある場合
-    relative_path = "Desktop\インターン\simulation_database.npy"
+    relative_path = "Desktop\研究データ\simulation_database.npy"
     
     # パスを結合
     full_path = os.path.join(home, relative_path)
@@ -277,7 +278,7 @@ def main_loop():
         return
     
     #誤差率簡易版の為のmean_timeのインポート
-    relative_path2 = "Desktop\インターン\mean_time_segment2.npy"
+    relative_path2 = "Desktop\研究データ\mean_time_segment2.npy"
     
     # パスを結合
     full_path2 = os.path.join(home, relative_path2)
@@ -288,6 +289,10 @@ def main_loop():
     except FileNotFoundError:
         print(f"❌ ファイルが見つかりません。パスを確認してください: {full_path2}")
         return
+    
+    
+    
+    
 
 
     attempts_input = input('How many attempts (Enter number, e.g., 100): ')
@@ -309,7 +314,7 @@ def main_loop():
     theta = []
 
     
-    relative_path3 = "Desktop\インターン\tau.npy.npy"
+    relative_path3 = "Desktop\研究データ\95tau.npy"
     full_path3 = os.path.join(home, relative_path3)
 
     try:
@@ -358,8 +363,8 @@ def main_loop():
 
             
        
-            dif = tau - totaltime
-            if dif > 0:
+            dif = tau[num_len] - totaltime
+            if dif >= 0:
                 ftheta.append(1)
             elif dif < 0:
                 ftheta.append(0)        
@@ -385,8 +390,8 @@ def main_loop():
     #誤差率簡易版
     difference(mean_time,data2)
 
-    for i in range(num_len):
-         print(f"誤差率{theta[i]}")
+    for i in range(num_len+1):
+         print(f"θ{theta[i]}")
 
 
 

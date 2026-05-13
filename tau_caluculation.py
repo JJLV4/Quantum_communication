@@ -8,6 +8,8 @@ import time
 from IPython.display import clear_output, display
 import os
 from scipy.optimize import brentq
+from scipy.optimize import newton
+from scipy.optimize import bisect
 #for the perm function
 import itertools
 #qutip install
@@ -213,8 +215,113 @@ def option_select(options, input_message):
         return options[0], 1
     return options[int(user_input) - 1], int(user_input)
 
+def calculate_tau(p_ARC,w_dis,p_D, sim_params, ttrans, vals):
+
+
+
+    def target_equation(tau):
+
+        # 画像の1行目：p_ARC4 の計算
+
+        # ※もしホワイトボードのように多項式にする場合は、ここに項を足してください
+
+        p_ARC4 = 1 - ((1-p_ARC)**(sim_params["eta_EPPS"]*(tau - ttrans))) - sim_params["eta_EPPS"]*(tau - ttrans)*p_ARC*(1-p_ARC)**(sim_params["eta_EPPS"]*(tau - ttrans)-1) - ((sim_params["eta_EPPS"]*(tau - ttrans))*(sim_params["eta_EPPS"]*(tau - ttrans)-1)/2)*(p_ARC**2)*((1-p_ARC)**(sim_params["eta_EPPS"]*(tau - ttrans)-2))-((sim_params["eta_EPPS"]*(tau - ttrans))*(sim_params["eta_EPPS"]*(tau - ttrans)-1)*(sim_params["eta_EPPS"]*(tau - ttrans)-2)/6)*(p_ARC**3)*((1-p_ARC)**(sim_params["eta_EPPS"]*(tau - ttrans)-3))
+
+       
+
+        # 画像の2行目：p_dis の計算
+
+        # w_dis(tau) が関数として正しく数値を返す前提です
+
+        p_dis = 1 - (1-p_D)**(w_dis*tau)
+
+       
+
+        # 全セグメントの成功確率が target_prob (例:0.95) と一致するか判定
+
+        # (p_ARC4 * p_dis)^N = target_prob  -> これを移行して = 0 の形にする
+
+        return (p_ARC4 * p_dis) ** vals - 0.95
+
+   
+
+    try:
+
+        # x0 は「初期推測値」です。物理的にあり得そうな時間（例: 0.1秒など）を入れます。
+
+        # 収束しない場合は、この x0 の値を変えてみてください。
+
+        tau_solution = newton(target_equation, x0=10)
+
+        return tau_solution
+
+       
+
+    except RuntimeError:
+
+        print("エラー: ニュートン法が収束しませんでした。初期値 x0 を調整してください。")
+
+        return None
+    
+def calculate_tau1(p_ARC, w_dis, p_D, sim_params, ttrans, vals):
+    """
+    累積的な成功確率が 0.95 になる時間 tau を算出する関数
+    """
+    def target_equation(tau):
+        # 1. 試行回数 M の算出
+        M = (sim_params["R_EPPS"]*sim_params["eta_EPPS"]) * (tau - ttrans)
+        
+        # tau が小さすぎて M が 0 以下の場合は、計算不能なので負の値を返す
+        if M <= 0:
+            return -0.95 # 0 - 0.95
+            
+        # 2. p_ARC4 (4回以上成功する累積確率) の計算
+        # 各項を分解して計算誤差を抑制
+        term0 = (1 - p_ARC)**M
+        term1 = M * p_ARC * (1 - p_ARC)**(M - 1)
+        term2 = (M * (M - 1) / 2) * (p_ARC**2) * ((1 - p_ARC)**(M - 2))
+        term3 = (M * (M - 1) * (M - 2) / 6) * (p_ARC**3) * ((1 - p_ARC)**(M - 3))
+        
+        p_ARC4 = 1 - (term0 + term1 + term2 + term3)
+        
+        # 3. p_dis (ディスティレーション成功確率) の計算
+        p_dis = 1 - (1 - p_D)**(w_dis * tau)
+        
+        # 4. 全体の成功確率とターゲット(0.95)の差
+        # 確率が0〜1の範囲に収まるようガードを入れる
+        #prob = (max(0, min(1, p_ARC4)) * max(0, min(1, p_dis))) ** vals
+        return ((p_ARC4*p_dis)**vals) - 0.95
+
+    try:
+        # 二分法の探索範囲を設定
+        # tau_min: ttrans (通信遅延) よりわずかに大きい時間
+        tau_min = ttrans + 1e-9
+        
+        # tau_max: 解が見つかるまで範囲を広げる。
+        # 累積方式なら、十分に長い時間を取れば必ず 0.95 を超える
+        tau_max = 1e6  # 100万単位（必要に応じて調整）
+        
+        # 解を挟めているか確認し、足りなければ tau_max を自動拡張
+        while target_equation(tau_max) < 0:
+            tau_max *= 10
+            if tau_max > 1e12: # 無限ループ防止
+                print("失敗")
+                break
+
+        # 二分法で解を特定
+        tau_solution = bisect(target_equation, tau_min, tau_max)
+        return tau_solution
+        
+    except ValueError:
+        print("erro")
+        return None 
+    
+
 def main_loop():
 
+
+    
+    tau = []
     options_list = ["askarani", "ca"]
     architecture, _ = option_select(options_list, "Arch:")
     options_list = ["A", "B"]
@@ -293,6 +400,7 @@ def main_loop():
 
     try:
         p_D = np.load(full_path)
+        print(f"{p_D}")
         print(f"✅ ローカルCドライブからロード完了: {full_path}")
     except FileNotFoundError:
         print(f"❌ ファイルが見つかりません。パスを確認してください: {full_path}")
@@ -307,6 +415,7 @@ def main_loop():
 
     try:
         t_4 = np.load(full_path2)
+        print(f"you{t_4}")
         print(f"✅ ローカルCドライブからロード完了: {full_path2}")
     except FileNotFoundError:
         print(f"❌ ファイルが見つかりません。パスを確認してください: {full_path2}")
@@ -316,8 +425,16 @@ def main_loop():
     w_dis = 1/t_4
 
 
-    p_ARC4 = 1 - ((1-p_ARC)**(sim_params["eta_EPPS"]*(tau - ttrans))) - sim_params["eta_EPPS"]*(tau - ttrans)*p_ARC*(1-p_ARC)**(sim_params["eta_EPPS"]*(tau - ttrans)-1) - ((sim_params["eta_EPPS"]*(tau - ttrans))*(sim_params["eta_EPPS"]*(tau - ttrans)-1)/2)*(p_ARC**2)*((1-p_ARC)**(sim_params["eta_EPPS"]*(tau - ttrans)-2))-((sim_params["eta_EPPS"]*(tau - ttrans))(sim_params["eta_EPPS"]*(tau - ttrans)-1)(sim_params["eta_EPPS"]*(tau - ttrans)-2)/6)*(p_ARC**3)*((1-p_ARC)**(sim_params["eta_EPPS"]*(tau - ttrans)-3))
-    p_dis = 1 - (1-p_D)**(w_dis(tau))
+    for num_len in range(vals):
+      tau_single = calculate_tau1(p_ARC,w_dis,p_D,sim_params, ttrans, num_len+1)
+      
+
+      tau.append(tau_single)
+      print(tau[num_len])
+
+    np.save("95tau.npy",tau)  
+
+    
 
 
 
