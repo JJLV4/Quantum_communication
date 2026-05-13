@@ -248,9 +248,14 @@ def plotter_lneth(y_Fidelity,y_time,x_data):
   plt.legend(loc='best') # 凡例
   plt.show()
 
+def difference(mean_time,data2):
+    epsilon = abs((data2-mean_time[1]) / data2) * 100
+
+    print(f"誤差率: {epsilon:.4f} %")
 
 def main_loop():
     
+    #データベースのインポート
     # ユーザーのホームディレクトリ（C:/Users/ユーザー名）を自動取得
     home = os.path.expanduser("~")
     
@@ -267,6 +272,20 @@ def main_loop():
     except FileNotFoundError:
         print(f"❌ ファイルが見つかりません。パスを確認してください: {full_path}")
         return
+    
+    #誤差率簡易版の為のmean_timeのインポート
+    relative_path2 = "Desktop\インターン\mean_time.npy"
+    
+    # パスを結合
+    full_path2 = os.path.join(home, relative_path2)
+
+    try:
+        data2 = np.load(full_path2)
+        print(f"✅ ローカルCドライブからロード完了: {full_path2}")
+    except FileNotFoundError:
+        print(f"❌ ファイルが見つかりません。パスを確認してください: {full_path2}")
+        return
+
 
     attempts_input = input('How many attempts (Enter number, e.g., 100): ')
     if not attempts_input.isdigit():
@@ -319,12 +338,18 @@ def main_loop():
 
         mean_Fidelity.append(np.mean(Total_Fidelity))
         mean_time.append(np.mean(time))
+        
+       
+        
 
     
 
 
 
     plotter_lneth(mean_Fidelity,mean_time,x_data)
+
+    #誤差率簡易版
+    difference(mean_time,data2)
 
 
 

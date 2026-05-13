@@ -1921,7 +1921,7 @@ def main_loop():
 
 
 
-                #------Distilliation（平均）の要素構築------#
+                #------Distilliation（平均）の要素構築------#attempt回した後の後処理
               mean_ap.append(np.mean(execution_times))  
               for i in range(4):
                 step_R.append(np.mean(step_counts[i]))
@@ -2057,6 +2057,10 @@ def main_loop():
 
           mean_Fiderity = np.mean(Fiderity_times)
           mean_time = np.sum(mean_ap)
+
+          np.save(f'mean_time_segment{num_len}.npy', mean_time)
+
+
           time_95_percentile = np.percentile(execution_times, 95)
           edr_95 = 1.0 / time_95_percentile
           std_dev_time = np.std(execution_times) # 標準偏差
