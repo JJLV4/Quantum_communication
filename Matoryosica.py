@@ -66,7 +66,8 @@ def storage_time(simdata,memory,compare,fail_id,step,total_time,pileup_data):
             fail_id.append(i)
             #compare[i] = 0 #this code is for the safety reason to apply Fidelity caluculation
 
-      total_time =max_list      
+      total_time =max_list
+      print(f"{step}回目、積み立て{pileup_data}") #デバック     
             
     else:#2週目以降
       
@@ -115,6 +116,8 @@ def storage_time(simdata,memory,compare,fail_id,step,total_time,pileup_data):
 
 
       fail_id = [] #2回目以降新しいfail_idを組み込む為のコード
+
+      print(f"{step}回目、積み立て{pileup_data}") #デバック 
 
       for i in range(len(simdata)):
         if compare[i] > memory:
@@ -274,7 +277,7 @@ def main_loop():
         return
     
     #誤差率簡易版の為のmean_timeのインポート
-    relative_path2 = "Desktop\インターン\mean_time.npy"
+    relative_path2 = "Desktop\インターン\mean_time_segment2.npy"
     
     # パスを結合
     full_path2 = os.path.join(home, relative_path2)
@@ -298,14 +301,36 @@ def main_loop():
     memory = paramset_memory()
     Fidelity = []
     Total_Fidelity = []
-    time = []
+    
     mean_Fidelity = []
     mean_time = []
     x_data = []
+    
+    theta = []
+
+    
+    relative_path3 = "Desktop\インターン\tau.npy.npy"
+    full_path3 = os.path.join(home, relative_path3)
+
+    try:
+        tau = np.load(full_path3)
+        print(f"✅ ローカルCドライブからロード完了: {full_path3}")
+    except FileNotFoundError:
+        print(f"❌ ファイルが見つかりません。パスを確認してください: {full_path3}")
+        return
+
+
+
+
+
+          
+
 
     #----------------------
 
     for num_len in range(n_ARC):#データの取得
+        ftheta = []
+        time = []
         for attempt in range(attempts):
             step = 0
             compare = [] #consider as waiting time
@@ -332,6 +357,15 @@ def main_loop():
                     break
 
             
+       
+            dif = tau - totaltime
+            if dif > 0:
+                ftheta.append(1)
+            elif dif < 0:
+                ftheta.append(0)        
+
+        theta.append(np.mean(ftheta))
+            
         
         x_data.append((num_len+1)*20*n_ELs)
 
@@ -350,6 +384,9 @@ def main_loop():
 
     #誤差率簡易版
     difference(mean_time,data2)
+
+    for i in range(num_len):
+         print(f"誤差率{theta[i]}")
 
 
 
