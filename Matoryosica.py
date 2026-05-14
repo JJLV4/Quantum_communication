@@ -231,7 +231,7 @@ def bellswaping_Hop(Fidelity):
 
     return Ftotal            
 
-def plotter_lneth(y_Fidelity,y_time,x_data):
+def plotter_lneth(y_Fidelity,y_time,y_tau,x_data):
     
   plt.figure(figsize=(10, 5))
   plt.plot(x_data, y_Fidelity, color='blue', marker='o', linestyle='None', label='Fidelity')
@@ -250,6 +250,17 @@ def plotter_lneth(y_Fidelity,y_time,x_data):
   plt.grid(True, linestyle='--', alpha=0.7) # グリッド線
   plt.legend(loc='best') # 凡例
   plt.show()
+
+  plt.figure(figsize=(10, 5))
+  plt.plot(x_data,y_tau,color='blue',marker='o',linestyle = 'None',label='theta function')
+  plt.title('Quantum Entanglement Time', fontsize=14, fontweight='bold') # 題名
+  plt.xlabel('distance', fontsize=12) # 横軸ラベル
+  plt.ylabel('Time', fontsize=12)    # 縦軸ラベル
+  plt.grid(True, linestyle='--', alpha=0.7) # グリッド線
+  plt.legend(loc='best') # 凡例
+  plt.show()
+
+
 
 def difference(mean_time,data2):
     epsilon = abs((data2-mean_time[0]) / data2) * 100
@@ -385,13 +396,19 @@ def main_loop():
 
 
 
-    plotter_lneth(mean_Fidelity,mean_time,x_data)
+    plotter_lneth(mean_Fidelity,mean_time,theta,x_data)
 
     #誤差率簡易版
     difference(mean_time,data2)
+    
+    
+
 
     for i in range(num_len+1):
          print(f"θ{theta[i]}")
+
+
+        
 
 
 
