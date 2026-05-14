@@ -84,7 +84,7 @@ def storage_time(simdata,memory,compare,fail_id,step,total_time,pileup_data):
               pass
               
           elif i == fail_id[fail_count]:
-            pileup_data[i] = simdata[i][0]+pileup_data[i] + 1 #sumarize total time for new data
+            pileup_data[i] = simdata[i][0]+pileup_data[i] + memory #sumarize total time for new data
             fail_count += 1
             #print("the confirm of the change of pileup_data")
           else:
@@ -252,7 +252,7 @@ def plotter_lneth(y_Fidelity,y_time,x_data):
   plt.show()
 
 def difference(mean_time,data2):
-    epsilon = abs((data2-mean_time[1]) / data2) * 100
+    epsilon = abs((data2-mean_time[0]) / data2) * 100
 
     print(f"誤差率: {epsilon:.4f} %")
 
