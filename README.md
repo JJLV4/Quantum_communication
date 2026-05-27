@@ -5,7 +5,7 @@ Original Repository:https://gitlab.com/jianyaojin/lquom-simulations
 
 --analystical_solution.py:Author Jianyao Jin---(this is original code)
 This code is mathematical simulation by Jianyao Jin.And this code's simulation is based on the thesis Investigating Entanglement Distribution Rates for Multi Platform First Generation Quantum Repeater Networks.
-We updated this code to use more practically! So codes described below is inspired by Jianyao Jin and thesis.
+We updated this code to consider Fidelity! So codes described below is inspired by Jianyao Jin and thesis.
 
 
 from now our contribution
