@@ -241,7 +241,8 @@ def calculate_tau(p_ARC,w_dis,p_D, sim_params, ttrans, vals):
 
         # (p_ARC4 * p_dis)^N = target_prob  -> これを移行して = 0 の形にする
 
-        return (p_ARC4 * p_dis) ** vals - 0.95
+        #return (p_ARC4 * p_dis) ** vals - 0.95
+        return (p_ARC4)**vals - 0.95 #Distillationを考慮せずに値が合うかを確認
 
    
 
@@ -290,7 +291,8 @@ def calculate_tau1(p_ARC, w_dis, p_D, sim_params, ttrans, vals):
         # 4. 全体の成功確率とターゲット(0.95)の差
         # 確率が0〜1の範囲に収まるようガードを入れる
         #prob = (max(0, min(1, p_ARC4)) * max(0, min(1, p_dis))) ** vals
-        return ((p_ARC4*p_dis)**vals) - 0.95
+        #return ((p_ARC4*p_dis)**vals) - 0.95
+        return p_ARC4 ** vals -0.95
 
     try:
         # 二分法の探索範囲を設定

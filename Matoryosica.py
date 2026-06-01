@@ -276,8 +276,8 @@ def main_loop():
     
     # ホームディレクトリ以下の相対パスを指定
     # 例：デスクトップの「research」フォルダにある場合
-    relative_path = "Desktop\研究データ\simulation_database.npy"
-    
+    #relative_path = "Desktop\研究データ\simulation_database.npy"　#忠実な値
+    relative_path = "Desktop\研究データ\simulation_database_prob100%.npy" #95%確認用
     # パスを結合
     full_path = os.path.join(home, relative_path)
 
@@ -295,7 +295,7 @@ def main_loop():
     full_path2 = os.path.join(home, relative_path2)
 
     try:
-        data2 = np.load(full_path2)
+        data2 = np.load(full_path2) #モンテカルロ法との直接比較のために作ったが、意味ない
         print(f"✅ ローカルCドライブからロード完了: {full_path2}")
     except FileNotFoundError:
         print(f"❌ ファイルが見つかりません。パスを確認してください: {full_path2}")
@@ -325,7 +325,8 @@ def main_loop():
     theta = []
 
     
-    relative_path3 = "Desktop\研究データ\95tau.npy"
+    #relative_path3 = "Desktop\研究データ\95tau.npy" #忠実な値
+    relative_path3 = "Desktop\研究データ\95tau_nodis.npy" #確認用
     full_path3 = os.path.join(home, relative_path3)
 
     try:
@@ -399,7 +400,7 @@ def main_loop():
     plotter_lneth(mean_Fidelity,mean_time,theta,x_data)
 
     #誤差率簡易版
-    difference(mean_time,data2)
+    difference(mean_time,data2)#モンテカルロ法との直接比較のために作ったが、意味ない
     
     
 
