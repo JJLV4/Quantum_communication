@@ -98,13 +98,13 @@ class RepeaterSegment:
 
         if self.global_swap_done:
            self.storage_count+=1
-           if self.storage_count == ((10000*e)+1) and method == "A":
+           if self.storage_count == ((1000000*e)+1) and method == "A":
               self.storage_count =0
               self.global_swap_done=False
               self.reset_process()
            
            #eは未設定
-           elif self.storage_count == (params["separate"]*10000)+1  and method == "B": # Fix: prams -> params
+           elif self.storage_count == (params["separate"]*1000000)+1  and method == "B": # Fix: prams -> params
               self.storage_count = 0
               self.global_swap_done=False
               self.reset_process()
@@ -225,13 +225,10 @@ class RepeaterSegment:
                       for i in range(self.n_els):
                           if not self.el_states[i]:
                             if method == "A":
-                              for s in range(int(params["eta_EPPS"]*params["R_EPPS"]*params["t_AFC"])):
-                                    print(int(params["eta_EPPS"]*params["R_EPPS"]*params["t_AFC"]))
-                                    print(s)
-                                    print(params["prob_EL_gen"])
-                                    if check_success(params["prob_EL_gen"]):
-                                        self.el_states[i] = True
-                                        break
+                                print(params["prob_EL_gen"])
+                                if check_success(params["prob_EL_gen"]*params["eta_EPPS"]):
+                                    self.el_states[i] = True
+                                    break
                             else:
 
                                 expected_trials = (params["eta_EPPS"] * params["R_EPPS"] * params["t_AFC"]) / params["separate"]
@@ -279,7 +276,7 @@ class RepeaterSegment:
 
 
 
-
+#---バケツリレー---
             else:
                 # --- Phase 2: バケツリレー ---
                 # 1. まず左端のELが成功しているかチェック
@@ -869,7 +866,7 @@ def Distilation_caluculation_A(e,F_total,Sndmethod_choice,num_len,mode):
             now_index = []
             for idx in perm:
                 # 手打ちしていたx1, y1...の代わりに、idxを使って1行で書きます
-                val = (1 - 0.05) * (1 - 0.05) * (1 - (1/2) * (1 - np.exp(-(F_total[i][idx] * 10**(-4)) / e)))
+                val = (1 - 0.05) * (1 - 0.05) * (1 - (1/2) * (1 - np.exp(-(F_total[i][idx] * 10**(-6)) / e)))
                 now_index.append(val)
             # x1 = (1 - 0.05) * (1 - 0.05) * (1-(1/2)*(1 - np.exp(-(F_total[i][0]*10**(-4))/e)))
             # y1 = (1 - 0.05) * (1 - 0.05) *(1-(1/2)*(1 - np.exp(-(F_total[i][1]*10**(-4))/e)))
@@ -1158,7 +1155,7 @@ def Distilation_caluculation_B(e,F_total,Sndmethod_choice,num_len,mode):
   if Sndmethod_choice == 'B':
     for count,perm in enumerate(itertools.permutations(base_indices,4)):
         F_array = []
-        now_index =[(1 - 0.05) * (1 - 0.05) * (1 - (1/2) * (1 - np.exp(-(x * 10**(-4)) / e))) 
+        now_index =[(1 - 0.05) * (1 - 0.05) * (1 - (1/2) * (1 - np.exp(-(x * 10**(-6)) / e))) 
                     for x in F_total[0]]
         for i in range(len(F_total)):
             if i+1 < len(F_total):
@@ -1794,9 +1791,9 @@ def main_loop():
 
 
                               if method_choice == "A":
-                                  t_generation = (step_rouds+1) * param_dict.get("t_AFC")#＋1はDistillationを考慮している
+                                  t_generation = (step_rouds+100) * 0.000001#＋1はDistillationを考慮している
                               else:
-                                  t_generation = ((step_rouds+1) * param_dict.get("t_AFC")) / param_dict.get("separate")#＋1はデッドタイム
+                                  t_generation = ((step_rouds+100) * param_dict.get("t_AFC")) / param_dict.get("separate")#＋1はデッドタイム
 
 
 
@@ -1892,9 +1889,10 @@ def main_loop():
                               if check_success(Disproba):#F_listを定義してからでないと行けない
                                   forth +=1
                                   print(f"成功{forth}")
+                                  print(f"stepの数{step_counts}")
                                   Fidelity_for_histgram_Hop.append(Distilation_caluculation_A(e,F_list_eachattempt,Sndmethod_choice,num_len,mode="normal"))#Hop by Hopに限る
 
-                                  print(f"stepの数{step_counts}")
+                                  
                                   
                                   break
                             
