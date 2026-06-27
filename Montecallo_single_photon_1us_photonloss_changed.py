@@ -86,7 +86,7 @@ class RepeaterSegment:
                 break
         return count
 
-    def step(self, params,method,e):
+    def step(self, params,method,e,memcount):
 
         #print(f"Debag Qr{params["prob_Global_Swap"]}")
         #print(f"Debag AFC{params["prob_AFC"]}") # Fixed: Changed 'prob_afc' to 'prob_AFC'
@@ -222,7 +222,7 @@ class RepeaterSegment:
             if not self.el_states[-1] and not self.el_states[0]:
                 #print(f"試行回数{(params["R_EPPS"])*params["t_AFC"]}") # Removed dictionary access here
                 if not self.is_complete:
-                      print("デバッグ")
+                      #print("デバッグ")
                       for i in range(self.n_els):
                           if not self.el_states[i]:
                             if method == "A":
@@ -412,9 +412,9 @@ class RepeaterSegment:
         self.global_swap_done = False
 
 # --- 3. シミュレーション実行関数 ---
-def run_simulation(segments, params,method,e):
+def run_simulation(segments, params,method,e,memcount):
     for seg in segments:
-          seg.step(params,method,e)
+          seg.step(params,method,e,memcount)
 
     all_done = True
     for i in range(len(segments)):
@@ -724,7 +724,7 @@ def calculate_probabilities_from_params(demo_choice, param_dict, architecture, a
         # 3. eta_afc (QST成功確率)
         prob_afc = param_dict.get("eta_AFC", 0.9)
 
-        p_link_pure = (1-(1-np.exp(-alpha*l)*eta_bsm*(eta_det)**required_measurements)**gammaf) * (prob_afc)**2
+        p_link_pure = (1-(1-np.exp(-0.046*l)*eta_bsm*(eta_det)**required_measurements)**gammaf) * (prob_afc)**2
         #p_link_pure = 1
         #p_link_pure = R_EPPS*eta_EPPS*(1-(1-np.exp(-alpha*l)*eta_bsm*(eta_det)**required_measurements)**gammaf) * (prob_afc)**2
         #p_link_pure = (1-(1-eta_EPPS*np.exp(-alpha*l)*eta_bsm*(eta_det)**required_measurements)**gammaf) * (prob_afc)**2
@@ -1691,6 +1691,16 @@ def main_loop():
           Fidelity_for_histgram_Hop = []
           save_Dispro = []
           time_before_distillation = []
+          sel=int(input('Enter the architecher 1:2bell 2:4bell ')) #the basis of the 4bell swap but now I consider only 2bell case
+          suc = 0
+          step2 = 0
+          if sel == 1:
+              memcount = 10
+              bell_num = 2
+
+          elif sel == 2:
+              memcount = 1000000
+              bell_num =4    
           
 
 
@@ -1756,7 +1766,7 @@ def main_loop():
               mean_Fiderity = []
             
             
-
+              
               for attempt in range(attempts):
                #4 denotes first round of distillation.
                   step_rouds = 0
@@ -1779,17 +1789,34 @@ def main_loop():
 
 
 
+                  
+
                         # 1回のシミュレーション
-                  for i in range(2):      
+                  while suc != bell_num:      
+                      suc +=1  
                       segments = [RepeaterSegment(i, sim_params["n_ELs"]) for i in range(sim_params["num_segments"]) ] #セグメントの初期化
                       while True:
                          
-                        all_complete = run_simulation(segments, sim_params,method_choice,e)
+                        all_complete = run_simulation(segments, sim_params,method_choice,e,memcount)
                         step += 1
                     #print("デバッグ")
+                        if suc == 2:
+                            step2 += 1
+                            if step2 == 11:
+                                print(f"10us過ぎた時{suc}")
+                                step2 = 0
+                                suc = 0 
+
+                                break
+
+
+                        if all_complete and suc == 1:
+                            print(f"1回目完了{suc}")
+                            break    
+
                         
 
-                        if all_complete:
+                        elif all_complete and suc == 2:
                             step_rouds += step
                             t_generation = (step_rouds+1) * 0.000001#＋1はDistillationを考慮している
                             t_latency_total =param_dict.get("t_CNOT") + param_dict.get("t_QR")
@@ -1806,7 +1833,7 @@ def main_loop():
                             
                             if fail[1] == 0:
                                 execution_times.append(t_elapsed)
-                                time_before_distillation.append(t_elapsed)#2つのベルペアが出来るまでの時間、2つ同時なのが単一光子だから、for文で回さなくて良い
+                                time_before_distillation.append(t_elapsed)#2つのベルペアが出来るまでの時間、2つ同時なのが単一光子だから、for文で回さなくて良い,4つでやるときは改良必要
 
                             else:
                                 execution_times[attempt] += t_elapsed
@@ -1927,7 +1954,7 @@ def main_loop():
 
 
           # プロッター呼び出し (y_dataは配列にする)
-          tau_list[0] = ((1/(sim_params["R_EPPS"]*sim_params["eta_EPPS"])) * np.log(1-(1-param_dict.get("eps"))**(1/sim_params["num_segments"])) / np.log(1 - (eta_qst_total**2) * (prob_el**sim_params["n_ELs"]) * (prob_ec**(sim_params["n_ELs"]-1)))) * sim_params["separate"] + ttrans #N=1用に入れた仮のτ
+          tau_list.append(((1/(sim_params["R_EPPS"]*sim_params["eta_EPPS"])) * np.log(1-(1-param_dict.get("eps"))**(1/sim_params["num_segments"])) / np.log(1 - (eta_qst_total**2) * (prob_el**sim_params["n_ELs"]) * (prob_ec**(sim_params["n_ELs"]-1)))) * sim_params["separate"] + ttrans) #N=1用に入れた仮のτ
           #モンテカルロ法と解析解の比較
           plt.errorbar(x_data, y_data, y_err, fmt='o', capsize=5,ecolor='red', color='blue', label='EDR with Time-STD Error')
           plt.plot(x_data, tau_list, color='black', marker='o', linestyle='None', label='LQUOM Analytical')
