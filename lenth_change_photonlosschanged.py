@@ -147,7 +147,7 @@ def calculate_probabilities_from_params(demo_choice, param_dict, architecture, a
 
         
         # 1. 10から800までの普通の配列を作る
-        l = np.arange(10, 1001, 10)
+        l = np.arange(10, 201, 10)
 
         # 2. mp.mpf を配列対応にパワーアップさせた「特製関数」を作る
         v_mpf = np.vectorize(mp.mpf)
@@ -310,10 +310,14 @@ def main_loop():
         "eta_EPPS": param_dict["eta_EPPS"]
     }
 
+    t_latency_total = param_dict.get("t_CNOT") + param_dict.get("t_QR")
+
     for i in range(len(l)):
-        N_tt = 1000/l[i]#the maximum lenth is described as this place and param dfine place
-        total_prob.append((prob_el[i]*(prob_qr**2))**N_tt)
-        #print(total_prob[i])
+        N_tt = 200/l[i]#the maximum lenth is described as this place and param dfine place
+        total_prob.append((1-(1-prob_el[i]*(prob_qr**2))**(sim_params["eta_EPPS"]*sim_params["R_EPPS"]*(1-t_latency_total-((1.47*l[i])/299792.458))))**N_tt)
+        print((1-(1-prob_el[i]*(prob_qr**2))**(sim_params["eta_EPPS"]*sim_params["R_EPPS"]*(1-t_latency_total-((1.47*l[i])/299792.458))))**N_tt)
+        print(total_prob[i])
+
 
 
     total_prob = np.array(total_prob)
@@ -322,9 +326,9 @@ def main_loop():
 
     plt.figure()
     #plt.ylim(1e-10000, 1e-19)
-    plt.yscale("log")
+    #plt.yscale("log")
     plt.plot(l, total_prob, 'x-', label="Total Probability") # 点を 'x'、線で繋ぐ
-    plt.plot(l,prob_el,'x', label="Total Probability")
+    plt.plot(l,prob_el,'x', label="EL Probability")
     plt.xlabel("distance")
     plt.ylabel("The change of the prob with l")
     plt.title("Probability vs Distance")
