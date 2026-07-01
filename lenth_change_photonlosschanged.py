@@ -180,6 +180,8 @@ def calculate_probabilities_from_params(demo_choice, param_dict, architecture, a
         l = np.array(l)
         v_exp = np.vectorize(mp.exp)
 
+
+        #p_link_pure = (1-(1-v_exp(-alpha*l_mp)*eta_bsm*(eta_det)**required_measurements)**gammaf) * (prob_afc)**2
         p_link_pure = (1-(1-v_exp(-0.046*l_mp)*eta_bsm*(eta_det)**required_measurements)**gammaf) * (prob_afc)**2
         #p_link_pure = (1-(1-mp.exp(-0.046*l_mp)*eta_bsm*(eta_det)**required_measurements)**gammaf) * (prob_afc)**2 #コンピュータの計算限界
         #p_link_pure = 1
@@ -313,10 +315,20 @@ def main_loop():
     t_latency_total = param_dict.get("t_CNOT") + param_dict.get("t_QR")
 
     for i in range(len(l)):
+
         N_tt = 200/l[i]#the maximum lenth is described as this place and param dfine place
         total_prob.append((1-(1-prob_el[i]*(prob_qr**2))**(sim_params["eta_EPPS"]*sim_params["R_EPPS"]*(1-t_latency_total-((1.47*l[i])/299792.458))))**N_tt)
-        print((1-(1-prob_el[i]*(prob_qr**2))**(sim_params["eta_EPPS"]*sim_params["R_EPPS"]*(1-t_latency_total-((1.47*l[i])/299792.458))))**N_tt)
+        print("--- 0.99の20乗周辺のデバッグ ---")
+        print("計算結果の値:", total_prob[i])          # あなたの計算結果の変数名
+        print("計算結果の型:", type(total_prob[i]))    # <class 'float'> か 'mpf' か
+        print(f"中身{(1-(1-prob_el[i]*(prob_qr**2))**(sim_params["eta_EPPS"]*sim_params["R_EPPS"]*(1-t_latency_total-((1.47*l[i])/299792.458))))}")
+        print(f"photon_time_distance={((1.47*l[i])/299792.458)}")
+        print(f"t_latency_total={t_latency_total}")
+        print(f"EL={prob_el[i]}")
+        print(f"N_tt={N_tt}")
         print(total_prob[i])
+        print(f"成功{prob_el[i]*(prob_qr**2)}")
+        print(f"失敗{1-prob_el[i]*(prob_qr**2)}")
 
 
 
