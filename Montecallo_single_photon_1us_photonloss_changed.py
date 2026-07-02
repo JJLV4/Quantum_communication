@@ -722,7 +722,8 @@ def calculate_probabilities_from_params(demo_choice, param_dict, architecture, a
 
 
         # 3. eta_afc (QST成功確率)
-        prob_afc = param_dict.get("eta_AFC", 0.9)
+        #prob_afc = param_dict.get("eta_AFC", 0.9)
+        prob_afc = 1 #高橋先生ver
 
         p_link_pure = (1-(1-np.exp(-0.046*l)*eta_bsm*(eta_det)**required_measurements)**gammaf) * (prob_afc)**2
         #p_link_pure = 1
@@ -1164,7 +1165,8 @@ def Distilation_caluculation_single_photon(mode):#N=1の時のみで、100usの�
     elif mode =="prob":
         print(f"Distillation{prob}")
         print(f"Hop by Hop {prob}")#prob**num_lenはメモリによって変わることに注意マトリョーシカプロトコルより、N=1のみで考えた
-        return prob #N=1のときのみを考慮。それ以上はマトリョーシカメソッドで
+        return 1 #2photon100%を考えたら1らしい。式を要修正！
+        #return prob #N=1のときのみを考慮。それ以上はマトリョーシカメソッドで
     else:
         return Distilation
 
@@ -1802,7 +1804,7 @@ def main_loop():
                     #print("デバッグ")
                         if suc == 2:
                             step2 += 1
-                            if step2 == 11:
+                            if step2 == 11:#10+1と言う意味
                                 print(f"10us過ぎた時{suc}")
                                 step2 = 0
                                 suc = 0 

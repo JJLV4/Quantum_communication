@@ -210,7 +210,8 @@ class RepeaterSegment:
                 # For a segment with only 1 EL, its completion is based on its 'is_complete' status
                 # (which means its single EL is established).
                     suc_count = 0
-                    self.loadcount =0
+                    self.loadcount =0 
+                    print("ローディング施工中")
                     for i in range(self.succount):
                         self.loadcount += 1
                         if check_success(params["prob_Global_Swap"]):
@@ -220,8 +221,9 @@ class RepeaterSegment:
                                 self.global_swap_done = True
                                 break
 
-                        else:
-                            self.reset_process()
+                    if not self.global_swap_done:
+                        self.reset_process() 
+                         
 
                     self.golobal_count +=1
 
@@ -238,14 +240,16 @@ class RepeaterSegment:
                             if method == "A":
                                     self.succount = 0
                                     suc_count = 0
-                                    for i in range(N_multi):
-                                        self.succount +=1
+                                    for k in range(N_multi):
+                                        
                                         if check_success(params["prob_EL_gen"]*params["eta_EPPS"]):
+                                            self.succount +=1
                                             if suc_count == 0:
                                                 print("成功1")
                                                 suc_count += 1
                                                 
-                                            else:    
+                                            else:
+                                                print("成功2")    
                                                 self.el_states[i] = True
 
                                                 
@@ -296,7 +300,13 @@ class RepeaterSegment:
                       if all(self.el_states) and all(self.ec_states):
                           self.is_complete = True
 
+
+                      elif len(self.ec_states) == 0 :
+                          print("Let's go !!")
+                          pass
+
                       else:
+
                         self.reset_process()
 
 
@@ -749,9 +759,12 @@ def calculate_probabilities_from_params(demo_choice, param_dict, architecture, a
 
 
         # 3. eta_afc (QST成功確率)
-        prob_afc = param_dict.get("eta_AFC", 0.9)
+        #prob_afc = param_dict.get("eta_AFC", 0.9)
+        prob_afc = 1 #高橋先生アーキテクチャ
 
-        p_link_pure = (1-(1-np.exp(-alpha*l)*eta_bsm*(eta_det)**required_measurements)**gammaf) * (prob_afc)**2
+
+        p_link_pure = (1-(1-np.exp(-0.046*l)*eta_bsm*(eta_det)**required_measurements)**gammaf) * (prob_afc)**2
+        #p_link_pure = (1-(1-np.exp(-alpha*l)*eta_bsm*(eta_det)**required_measurements)**gammaf) * (prob_afc)**2
         #p_link_pure = 1
         #p_link_pure = R_EPPS*eta_EPPS*(1-(1-np.exp(-alpha*l)*eta_bsm*(eta_det)**required_measurements)**gammaf) * (prob_afc)**2
         #p_link_pure = (1-(1-eta_EPPS*np.exp(-alpha*l)*eta_bsm*(eta_det)**required_measurements)**gammaf) * (prob_afc)**2
@@ -1794,6 +1807,7 @@ def main_loop():
                   fail.append(0)
                   forth =0
                   #print("debug")
+                  step_stage = 0 #watitingとローディングスワッピングの工程が混ざるところがあるからこれで調整
                   if Sndmethod_choice =="A":
                     F_list_eachattempt = []#仮として、Fの原型を残している。ELを増やすときはここを改造,しっかりstepとの関係を考える
                    
@@ -1811,18 +1825,34 @@ def main_loop():
                         # 1回のシミュレーション
                   
                   while True:
-                    if not segments[0].el_states:    
+                    if not segments[0].el_states: #EL生成   
                         all_complete,N_suc = run_simulation(segments, sim_params,method_choice,e,int(N_multi))
-                        step += (N_multi+100)
-                        #print("デバッグ")
-                    elif segments[0].el_states: 
+                        step += (int(N_multi)+100)
+                        print("EL成功")
+                    elif segments[0].el_states: #ローディング
                         all_complete,N_suc = run_simulation(segments, sim_params,method_choice,e,int(N_multi))
-                        step += N_suc*200
-                        #print("デバッグ")
+                        if segments[0].RP: 
+                            print("ローディング")
+                            step += N_suc*200
+
+                        elif not segments[0].RP:
+                            print("EL")
+                            step += (int(N_multi)+100)
+                        
+
+                        
+
+                        if all_complete:
+                            print("成功!!!")
+
+                        else:
+                            print("失敗!!!")    
 
                         
 
                     if all_complete:
+                        print("動いてる？")
+
                         step_rouds += step
                         t_generation = (step_rouds+1) * 0.000001#＋1はDistillationを考慮している
                         t_latency_total =param_dict.get("t_CNOT") + param_dict.get("t_QR")
@@ -1857,21 +1887,23 @@ def main_loop():
 
                               
 
-                              #print("debug")
-                            Disproba = Distilation_caluculation_single_photon(mode="prob")
-                            p = Disproba
+                            #print("debug")
+                        #Disproba = Distilation_caluculation_single_photon(mode="prob")
+                        Disproba = 1
+                        #p = Disproba
+                        p = 1 #1になるように調整必要、とりあえず無理矢理1に！ 
 
-                            if check_success(Disproba):#F_listを定義してからでないと行けない
-                                print(f"成功")
-                                Fidelity_for_histgram_Hop.append(Distilation_caluculation_single_photon(mode="normal"))#Hop by Hopに限る                                  
-                                break
-                            
-                            else:
-                                fail[0] +=1
-                                fail[1] += 1
-                                segments = [RepeaterSegment(i, sim_params["n_ELs"]) for i in range(sim_params["num_segments"]) ] #セグメントの初期化
-                                step = 0
-                                print(f"失敗{fail}回目")
+                        if check_success(Disproba):#F_listを定義してからでないと行けない
+                            print(f"成功")
+                            Fidelity_for_histgram_Hop.append(Distilation_caluculation_single_photon(mode="normal"))#Hop by Hopに限る                                  
+                            break
+                        
+                        else:
+                            fail[0] +=1
+                            fail[1] += 1
+                            segments = [RepeaterSegment(i, sim_params["n_ELs"]) for i in range(sim_params["num_segments"]) ] #セグメントの初期化
+                            step = 0
+                            print(f"失敗{fail}回目")
                                 
 
                            
