@@ -1994,7 +1994,7 @@ def main_loop():
           # プロッター呼び出し (y_dataは配列にする)
           tau_list.append(((1/(sim_params["R_EPPS"]*sim_params["eta_EPPS"])) * np.log(1-(1-param_dict.get("eps"))**(1/sim_params["num_segments"])) / np.log(1 - (eta_qst_total**2) * (prob_el**sim_params["n_ELs"]) * (prob_ec**(sim_params["n_ELs"]-1)))) * sim_params["separate"] + ttrans) #N=1用に入れた仮のτ
           #モンテカルロ法と解析解の比較
-          plt.errorbar(x_data, y_data, y_err, fmt='o', capsize=5,ecolor='red', color='blue', label='EDR with Time-STD Error')
+          plt.errorbar(x_data, y_data, y_err, fmt='o', capsize=5,ecolor='red', color='blue', label='Tme with Time-STD Error')
           plt.plot(x_data, tau_list, color='black', marker='o', linestyle='None', label='LQUOM Analytical')
 
           plt.grid()
