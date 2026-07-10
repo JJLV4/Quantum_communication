@@ -147,7 +147,7 @@ def calculate_probabilities_from_params(demo_choice, param_dict, architecture, a
 
         
         # 1. 10から800までの普通の配列を作る
-        l = np.arange(10, 201, 10)
+        l = np.arange(10,201,1)
 
         # 2. mp.mpf を配列対応にパワーアップさせた「特製関数」を作る
         v_mpf = np.vectorize(mp.mpf)
@@ -315,9 +315,9 @@ def main_loop():
     t_latency_total = param_dict.get("t_CNOT") + param_dict.get("t_QR")
 
     for i in range(len(l)):
-
+        # M * p_ARC * (1 - p_ARC)**(M - 1)
         N_tt = 200/l[i]#the maximum lenth is described as this place and param dfine place
-        total_prob.append((1-(1-prob_el[i]*(prob_qr**2))**(sim_params["eta_EPPS"]*sim_params["R_EPPS"]*(1-t_latency_total-((1.47*l[i])/299792.458))))**N_tt)
+        total_prob.append(((1-(1-prob_el[i]*(prob_qr**2))**(sim_params["eta_EPPS"]*sim_params["R_EPPS"]*(1-t_latency_total-((1.47*l[i])/299792.458)))-(sim_params["eta_EPPS"]*sim_params["R_EPPS"]*(1-t_latency_total-((1.47*l[i])/299792.458)))*(prob_el[i]*(prob_qr**2))*((1-prob_el[i]*(prob_qr**2))**((sim_params["eta_EPPS"]*sim_params["R_EPPS"]*(1-t_latency_total-((1.47*l[i])/299792.458)))-1)))**N_tt))
         print("--- 0.99の20乗周辺のデバッグ ---")
         print("計算結果の値:", total_prob[i])          # あなたの計算結果の変数名
         print("計算結果の型:", type(total_prob[i]))    # <class 'float'> か 'mpf' か
@@ -347,6 +347,12 @@ def main_loop():
     plt.legend()
     plt.grid(True)
     plt.show()
+    max_value = np.max(total_prob)
+    index = np.argmax(total_prob)
+
+    print(f"最大値: {max_value}")
+    print(f"左から{index+1}番目より、一番成功率が高い長さは{11+index}km")
+
 
 
 
