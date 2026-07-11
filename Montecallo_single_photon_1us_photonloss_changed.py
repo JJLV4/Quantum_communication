@@ -60,6 +60,8 @@ class RepeaterSegment:
 
         self.RP = False
 
+        self.one_load = False
+
 
     def reset_process(self):
         self.helald_time = True
@@ -209,9 +211,18 @@ class RepeaterSegment:
 
                     if check_success(params["prob_Global_Swap"]):
                         self.global_swap_done = True
+                        mark = 1
 
                     else:
                         self.reset_process()
+                        mark = 0
+
+                    if mark == 0 and check_success(np.sqrt(params["prob_Global_Swap"])):
+                        self.one_load = True
+
+                            
+
+
 
                     self.golobal_count +=1
 
@@ -410,9 +421,13 @@ class RepeaterSegment:
         self.is_complete = False
         self.current_bucket_idx = 0
         self.global_swap_done = False
+        
 
 # --- 3. シミュレーション実行関数 ---
-def run_simulation(segments, params,method,e,memcount):
+def run_simulation(segments, params,method,e,memcount,flag):
+    # if flag ==1:
+    #     print("デバック")#成功した後も試行しているかの確認
+    
     for seg in segments:
           seg.step(params,method,e,memcount)
 
@@ -427,6 +442,7 @@ def run_simulation(segments, params,method,e,memcount):
             break
         #else:
             #print(f"how many els{seg.n_els}")
+        
     return all_done
 
 # --- 4. 可視化関数 (バケツリレー可視化強化版) ---
@@ -1775,8 +1791,18 @@ def main_loop():
                   fail = []
                   fail.append(0)
                   fail.append(0)
+                  photon_num = []
+                  ion_num = []
+                  ion_max = []
+                  remove = 0
+                  suc = 0
+                  ion = 0
                   forth =0
+                  flag_suc = 0
+                  flag_sucnum = 0
                   #print("debug")
+                  step3 = 0
+                  onside_mark = 0
                   if Sndmethod_choice =="A":
                     F_list_eachattempt = []#仮として、Fの原型を残している。ELを増やすときはここを改造,しっかりstepとの関係を考える
                    
@@ -1794,34 +1820,87 @@ def main_loop():
                   
 
                         # 1回のシミュレーション
-                  while suc != bell_num:      
-                      suc +=1  
+                  while flag_sucnum != 100:      
+                      suc +=1
+                      ion +=1
+                      flag = [0]
+                      flag_num = []
+                      flag = np.array(flag)
+
+                      print(f"デバック:suc{suc}ion{ion}")
+                      
+
                       segments = [RepeaterSegment(i, sim_params["n_ELs"]) for i in range(sim_params["num_segments"]) ] #セグメントの初期化
                       while True:
-                         
-                        all_complete = run_simulation(segments, sim_params,method_choice,e,memcount)
+
+                        #self.one_load = True
+                        
+                        all_complete = run_simulation(segments, sim_params,method_choice,e,memcount,flag_suc)
                         step += 1
+                        
                     #print("デバッグ")
+                        if np.any(flag >= 1):#Distillationが失敗した時の消し方、今回は失敗しないので、これには届かないがついでに書いておいた。
+                            for i in range(len(flag_num)):    
+                                flag_num[i] += 1
+                                if flag_num[i] == 100 and i != 0:
+                                    remove = i
+
+                            if remove != 0:
+                                del flag_num[remove]
+                                del flag[remove]
+                                ion -= 2
+
+                        if flag_suc == 1: #成功したDistillationが届くまでの時間
+                            flag_sucnum += 1
+                            print(f"成功した後のion{ion}")
+                            if flag_sucnum == 100:
+                                ion_num = np.mean(photon_num)
+                                ion_max = np.max(photon_num)
+                                #photon_num= np.array(photon_num)
+                                photon_num.clear()
+                                break        
+
+
+
                         if suc == 2:
                             step2 += 1
                             if step2 == 11:#10+1と言う意味
                                 print(f"10us過ぎた時{suc}")
                                 step2 = 0
-                                suc = 0 
+                                suc = 0
+                                ion -= 2 
+                                photon_num.append(ion)
+                                
+
 
                                 break
+                        
+                        #-------ここからが、片方でイオンを数えるときの肝-------
+                        if segments.one_lode == True  and onside_mark != 1:#and not all_completeワンちゃん必要かも
+                            onside_mark = 1
+                            ion += 1
 
+
+
+                        if segments.one_lode == True  and onside_mark ==1 and suc == 2 and not all_complete:
+                            step3 += 1
+                            if step3 == 11:
+                                step3 = 0
+                                ion -= 2
+
+                        #------------------------------------------------------------------------両方と片方で2つが10usに出来た時のイオンの数も考慮、このときは100us待つが、両方の時は、消さず片方の時が分かった時のみ消すというトリッキーな事をしないと行けない        
 
                         if all_complete and suc == 1:
-                            print(f"1回目完了{suc}")
+                            print(f"1回目完了{suc},ion{ion}")
+                            photon_num.append(ion)
                             break    
 
                         
-
-                        elif all_complete and suc == 2:
+                        
+                        elif all_complete and suc == 2 and flag_suc != 1:#elif all_complete and suc == 2 and flag_suc == 1:も考える。イオンの数の調整として行うていうか、step2=11の他の分岐として数えさせるでも良いかも
                             step_rouds += step
                             t_generation = (step_rouds+1) * 0.000001#＋1はDistillationを考慮している
-                            t_latency_total =param_dict.get("t_CNOT") + param_dict.get("t_QR")
+                            t_latency_total =param_dict.get("t_CNOT") + param_dict.get("t_QR") + 0.0001
 
                           
                             t_elapsed = t_generation + t_latency_total #* total_golobal_count
@@ -1858,8 +1937,12 @@ def main_loop():
                             p = Disproba
 
                             if check_success(Disproba):#F_listを定義してからでないと行けない
-                                print(f"成功")
-                                Fidelity_for_histgram_Hop.append(Distilation_caluculation_single_photon(mode="normal"))#Hop by Hopに限る                                  
+                                print(f"成功{suc}ion{ion}")
+                                Fidelity_for_histgram_Hop.append(Distilation_caluculation_single_photon(mode="normal"))#Hop by Hopに限る
+                                flag_suc = 1
+                                suc = 0
+                                photon_num.append(ion)
+                                                              
                                 break
                             
                             else:
@@ -1868,8 +1951,12 @@ def main_loop():
                                 segments = [RepeaterSegment(i, sim_params["n_ELs"]) for i in range(sim_params["num_segments"]) ] #セグメントの初期化
                                 step = 0
                                 print(f"失敗{fail}回目")
+                                flag.append(1)
                                 
-
+                        
+                        photon_num.append(ion-1) #何も光子がこなかったとき、関数の性質上個々に置く
+                        if flag_suc ==1:
+                            print(f"ここまで来てる？{flag_sucnum}")
                            
 
 
@@ -1878,9 +1965,9 @@ def main_loop():
                     
                        
 
-                    # 進捗表示 (10%ごと)
-                        if (attempt + 1) % (attempts // 10 + 1) == 0:
-                            print(".", end="")
+                    # # 進捗表示 (10%ごと)
+                    #     if (attempt + 1) % (attempts // 10 + 1) == 0:#10で割り切れる時に出てくる消しても支障ない
+                    #         print(".", end="")
 
 
               mean_ap = np.mean(execution_times)                   
@@ -1992,6 +2079,8 @@ def main_loop():
 
           histgram(execution_times,Fidelity_for_histgram_Hop,attempts)
           #heatmap_analysis(execution_times, Fidelity_for_histgram_Hop, attempts)
+
+          print(f"イオンの平均使用数{np.mean(ion_num)},イオンの最大使用数{np.max(ion_max)}")
 
 
 
