@@ -1802,7 +1802,8 @@ def main_loop():
                   flag_sucnum = 0
                   #print("debug")
                   step3 = 0
-                  onside_mark = 0
+                  onside_sucnum = 0
+                  oneside_step = 0
                   if Sndmethod_choice =="A":
                     F_list_eachattempt = []#仮として、Fの原型を残している。ELを増やすときはここを改造,しっかりstepとの関係を考える
                    
@@ -1861,32 +1862,73 @@ def main_loop():
                                 break        
 
 
-
+                        #両方のイオンが成功してから、もう一つの両方のイオンが出るまでの待機時間。片方イオンが出来たら、100us待つようにしないといけない。 
                         if suc == 2:
-                            step2 += 1
-                            if step2 == 11:#10+1と言う意味
+                            step2 += 1 #これも配列にして処理しないと追えないかも
+
+                            #両方が一組しか成功していないときの待ち時間のリミット
+                            if step2 == 11 and onside_sucnum == 0: #10+1と言う意味,onside_sucnum == 0で一つしか成功していないことを強調。
                                 print(f"10us過ぎた時{suc}")
                                 step2 = 0
                                 suc = 0
-                                ion -= 2 
+                                ion -= 2 #意味的には-1で良いと思うかも知れないが、プログラム的に-2にしないといけない。 
                                 photon_num.append(ion)
                                 
 
 
                                 break
+
+                            elif step2 == 11 and onside_sucnum >= 1:#このコードを通る時は、sucが少なくとも、一つ成功した時に10us前後に片方のイオンが成功した時。
+                                suc = 0
+                                photon_num.append(ion-1)#sucはionが一つ多いとしてみている。
+                                
+                            
+
+
+                            #これも10us前後に光子のローディングが成功していなかったら、試行する。この見分け方として、ionの数をstepを元にして、photnを使って見分けるのが面白いかも
+                            #片方、両方が成功した時の待ち時間、step==11 and onside_sucnum >= 1にして、sucだけ消しちゃって、100カウントは別でやるべき。
+                            elif step2 == 101 and onside_sucnum >= 1:#イオンは一気に減らすのではなく、段階的に減らすのが重要。配列の出番かも
+                                step2 = 0
+                                suc = 0
+                                ion -= 2
+                                onside_sucnum -= 1
+                                photon_num.append(ion)
+                                
+
+
                         
                         #-------ここからが、片方でイオンを数えるときの肝-------
-                        if segments.one_lode == True  and onside_mark != 1:#and not all_completeワンちゃん必要かも
-                            onside_mark = 1
+
+                        #片方だけ成功した時
+                        if segments.one_lode == True:#単純に片方のローディングが成功した時のイオン増加を記録 
+                            onside_sucnum += 1
                             ion += 1
+                            segments.one_lode = False
+                            
 
+                        #片方でかつ1つしか成功していない時のカウントダウン
+                        if onside_sucnum >= 1  and suc == 1 and not all_complete:#suc and not all_completeにより、両方成功はない事を表す。 :
 
+                            oneside_step += 1
 
-                        if segments.one_lode == True  and onside_mark ==1 and suc == 2 and not all_complete:
-                            step3 += 1
-                            if step3 == 11:
-                                step3 = 0
+                            if oneside_step == 11 and onside_sucnum == 1:
+                                ion -= 1
+                                onside_sucnum -= 1
+                                oneside_step = 0
+                                
+                            
+                            #前後10usに光子の保存がなければ、100のカウントダウンに入れてイオンで処理しよう
+                            #片方で2つ成功した際のヘラルドカウントダウン　これも問答無用でイオンを2つ減らすまでのカウントダウンの共通関数で処理するべき
+                            elif oneside_step == 101 and onside_sucnum == 2:
                                 ion -= 2
+                                onside_sucnum -= 2
+                                oneside_step = 0
+
+
+
+
+
+                        
 
                         #------------------------------------------------------------------------両方と片方で2つが10usに出来た時のイオンの数も考慮、このときは100us待つが、両方の時は、消さず片方の時が分かった時のみ消すというトリッキーな事をしないと行けない        
 
