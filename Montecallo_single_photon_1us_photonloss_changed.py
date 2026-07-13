@@ -779,6 +779,7 @@ def calculate_probabilities_from_params(demo_choice, param_dict, architecture, a
         print(f"Calculated Conn Prob: {eta_conn:.5f}")
         print(tau)
 
+        
 
         return [p_link_pure, prob_afc, eta_qr, eta_conn]
 
@@ -1608,6 +1609,9 @@ def main_loop():
     prob_el, prob_afc, prob_qr, prob_ec = probs
 
 
+    
+
+
 
 
 
@@ -1625,6 +1629,17 @@ def main_loop():
         "separate": param_dict["separate"],
         "eta_EPPS": param_dict["eta_EPPS"]
     }
+
+
+
+    
+    print(f"100usあたりに出来るイオンの数{100*prob_qr*prob_el}")
+    
+    print(f"100usあたりに出来るベルペアの数{100*(prob_qr**2)*prob_el}")
+
+    print(f"100usあたりに出来るイオンの数EPPS生成効率考慮{100*prob_qr*prob_el*sim_params["eta_EPPS"]}")
+
+    print(f"100usあたりに出来るベルペアの数EPPS生成効率考慮{100*prob_qr*prob_el*(sim_params["eta_EPPS"]**2)}")
 
 
 
