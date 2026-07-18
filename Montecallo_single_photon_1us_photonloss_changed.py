@@ -741,6 +741,9 @@ def calculate_probabilities_from_params(demo_choice, param_dict, architecture, a
         #prob_afc = param_dict.get("eta_AFC", 0.9)
         prob_afc = 1 #高橋先生ver
 
+
+        
+        gammaf = 1 # 周波数多重化1の時
         p_link_pure = (1-(1-np.exp(-0.046*l)*eta_bsm*(eta_det)**required_measurements)**gammaf) * (prob_afc)**2
         #p_link_pure = 1
         #p_link_pure = R_EPPS*eta_EPPS*(1-(1-np.exp(-alpha*l)*eta_bsm*(eta_det)**required_measurements)**gammaf) * (prob_afc)**2
@@ -779,7 +782,7 @@ def calculate_probabilities_from_params(demo_choice, param_dict, architecture, a
         print(f"Calculated Conn Prob: {eta_conn:.5f}")
         print(tau)
 
-        
+        print(f"周波数多重化{gammaf}")
 
         return [p_link_pure, prob_afc, eta_qr, eta_conn]
 
@@ -1632,7 +1635,16 @@ def main_loop():
 
 
 
+    print(f"EL{prob_el}")
+
+    print(f"QR{prob_qr}")
+
+    print(f"EEPS効率{sim_params["eta_EPPS"]}")
+
+    print(f"R_EPPS{sim_params["R_EPPS"]}")
+
     
+
     print(f"100usあたりに出来るイオンの数{100*prob_qr*prob_el}")
     
     print(f"100usあたりに出来るベルペアの数{100*(prob_qr**2)*prob_el}")
@@ -1819,6 +1831,14 @@ def main_loop():
                   step3 = 0
                   onside_sucnum = 0
                   oneside_step = 0
+                  flag = [0]
+                  flag_num = [0]
+                  flag = np.array(flag)
+                  onside_sucstep = [0]
+                  suc_compare_step = [0]
+                  pile_step = [0] #10us以内にまった時間をヘラルドを進める要素として追加
+                  step2 = 0
+
                   if Sndmethod_choice =="A":
                     F_list_eachattempt = []#仮として、Fの原型を残している。ELを増やすときはここを改造,しっかりstepとの関係を考える
                    
@@ -1839,9 +1859,7 @@ def main_loop():
                   while flag_sucnum != 100:      
                       suc +=1
                       ion +=1
-                      flag = [0]
-                      flag_num = []
-                      flag = np.array(flag)
+                      
 
                       print(f"デバック:suc{suc}ion{ion}")
                       
@@ -1853,18 +1871,70 @@ def main_loop():
                         
                         all_complete = run_simulation(segments, sim_params,method_choice,e,memcount,flag_suc)
                         step += 1
-                        
-                    #print("デバッグ")
-                        if np.any(flag >= 1):#Distillationが失敗した時の消し方、今回は失敗しないので、これには届かないがついでに書いておいた。
-                            for i in range(len(flag_num)):    
-                                flag_num[i] += 1
-                                if flag_num[i] == 100 and i != 0:
-                                    remove = i
 
-                            if remove != 0:
-                                del flag_num[remove]
-                                del flag[remove]
-                                ion -= 2
+                         #片方だけ成功した時の処理 : 下に影響してくるので先に考える
+                        if segments.one_lode == True:#単純に片方のローディングが成功した時のイオン増加を記録 
+                            onside_sucnum += 1
+                            ion += 1
+                            segments.one_lode = False
+                            onside_sucstep.append(step) 
+
+                        
+                    
+                        if np.any(flag >= 1):#100us待つ為の関数として使うと良い
+                            for i in range(len(flag_num)):  
+                                if i != 0:  
+                                    flag_num[i] += 1
+
+
+                                if suc_compare_step[1] == True:#sucの調整
+                                    if step - suc_compare_step[1] > 10 and not flag_suc:#Distilationが成功ルートに入ると、suc関係なくなるから
+                                        suc = 1 #1つの成功であったのが1つの成功になる。10us以内に2つ目のsucができなかったら、出来ていないも同然だから1にして大丈夫
+                                        del suc_compare_step[1] #suc_compare_stepはsuc==1の時しか増えないから大丈夫    
+
+                                
+
+                                if flag_num[i] == 100 - pile_step[i] and i != 0:
+                                    remove = i
+                                    
+                                    del pile_step[remove]
+                                       
+
+                                if remove != 0:
+
+                                    if flag[remove] == 2:#onesucが成功した時にion-2するためのbom
+                                        bom = 1
+                                        bom_count.append(0)
+
+                                    elif flag[remove] == 1:#one_sucが先に帰ってきた場合
+                                        if len(ion_time) > 3:
+                                            if ion_time[3] - ion_time[2] <= 10 and boo[3] == 1 :
+                                                del ion_time[1]
+                                                ion -= 1
+                                                flag[remove] == 2 #boo[3] == 1、つまり、ワンサイドより、suc oneの順番で光子が入る事状況の処理に、flag[remove] = 2にすることで持って行く
+
+
+                                            else:
+                                                 del ion_time[1]
+                                                 del ion_time[1] #長さが3だから見られるトリック
+                                                 ion -= 2
+                                                 remove_element.append(remove)           
+
+                                        else:
+                                            del ion_time[1]
+                                            del ion_time[1] #長さが3だから見られるトリック
+                                            ion -= 2  
+                                            remove_element.append(remove)      
+
+
+
+
+                                     
+                                    del flag_num[remove]
+                                    del flag[remove]
+                                    ion -= 2 #段階的にイオンは減らす必要がある。別に関数を作るべき
+                                    remove = 0
+                                    
 
                         if flag_suc == 1: #成功したDistillationが届くまでの時間
                             flag_sucnum += 1
@@ -1878,7 +1948,7 @@ def main_loop():
 
 
                         #両方のイオンが成功してから、もう一つの両方のイオンが出るまでの待機時間。片方イオンが出来たら、100us待つようにしないといけない。 
-                        if suc == 2:
+                        if suc == 2 and not all_complete:
                             step2 += 1 #これも配列にして処理しないと追えないかも
 
                             #両方が一組しか成功していないときの待ち時間のリミット
@@ -1888,38 +1958,42 @@ def main_loop():
                                 suc = 0
                                 ion -= 2 #意味的には-1で良いと思うかも知れないが、プログラム的に-2にしないといけない。 
                                 photon_num.append(ion)
+                                del suc_compare_step[1]
+
                                 
 
 
                                 break
 
-                            elif step2 == 11 and onside_sucnum >= 1:#このコードを通る時は、sucが少なくとも、一つ成功した時に10us前後に片方のイオンが成功した時。
-                                suc = 0
-                                photon_num.append(ion-1)#sucはionが一つ多いとしてみている。
+
+                            #3つ目がこないことを前提としている要修正
+                            elif step2 <= 11 and onside_sucnum == 1:#このコードを通る時は、sucが少なくとも、一つ成功した時に10us前後に片方のイオンが成功した時。
                                 
+                                
+                                if suc_compare_step[1] < onside_sucstep[1] :
+                                    flag.append(1) #1のappendで良いが、onsideが先行した場合は調整が必要。これも、3,4,5で変わってくる。
+                                    pile_step.append(step2) 
+                                    step2 = 0
+                                    #suc = 0
+                                else:
+                                    flag.append(2)
+                                    pile_step.append(step2) 
+                                    step2 = 0
+                                    onside_sucnum -= 1 #3つめ4つめ~10個目ときたときの対応が出来ない 
+                                flag_num.append(0)
+                                photon_num.append(ion-1)#sucはionが一つ多いとしてみている。
+                                break
                             
 
 
-                            #suc=2で10us待って成功しなかった時にphoton_numの数が変化しなかったら、10us圏内に光子はなかったという事となり、10usで撤収、逆に10us圏内にあれば100usカウントする。
-                            #これも10us前後に光子のローディングが成功していなかったら、試行する。この見分け方として、ionの数をstepを元にして、photnを使って見分けるのが面白いかも
-                            #片方、両方が成功した時の待ち時間、step==11 and onside_sucnum >= 1にして、sucだけ消しちゃって、100カウントは別でやるべき。
-                            elif step2 == 101 and onside_sucnum >= 1:#イオンは一気に減らすのではなく、段階的に減らすのが重要。配列の出番かも
-                                step2 = 0
-                                suc = 0
-                                ion -= 2
-                                onside_sucnum -= 1
-                                photon_num.append(ion)
+                
                                 
 
 
                         
                         #-------ここからが、片方でイオンを数えるときの肝-------
 
-                        #片方だけ成功した時
-                        if segments.one_lode == True:#単純に片方のローディングが成功した時のイオン増加を記録 
-                            onside_sucnum += 1
-                            ion += 1
-                            segments.one_lode = False
+                       
                             
 
                         #片方でかつ1つしか成功していない時のカウントダウン
@@ -1935,10 +2009,16 @@ def main_loop():
                             
                             #前後10usに光子の保存がなければ、100のカウントダウンに入れてイオンで処理しよう
                             #片方で2つ成功した際のヘラルドカウントダウン　これも問答無用でイオンを2つ減らすまでのカウントダウンの共通関数で処理するべき
-                            elif oneside_step == 101 and onside_sucnum == 2:
-                                ion -= 2
+                            elif onside_sucnum == 2 and oneside_step <= 11:
+                                suc = 0
                                 onside_sucnum -= 2
+                                pile_step.append(oneside_step)
+                                flag.append(2) #onsideが先行した場合より、90usで消すように仕向けた。ただこれだけだと、3つめ4つめに対応出来ない。
+                                flag_num.append(0)
+                                photon_num.append(ion-1)#sucはionが一つ多いとしてみている。
                                 oneside_step = 0
+                                break
+                                
 
 
 
@@ -1948,13 +2028,14 @@ def main_loop():
 
                         #------------------------------------------------------------------------両方と片方で2つが10usに出来た時のイオンの数も考慮、このときは100us待つが、両方の時は、消さず片方の時が分かった時のみ消すというトリッキーな事をしないと行けない        
 
-                        if all_complete and suc == 1:
+                        if all_complete and suc == 1:#両方のみが1回、成功した時
                             print(f"1回目完了{suc},ion{ion}")
                             photon_num.append(ion)
+                            suc_compare_step.append(step)
                             break    
 
                         
-                        
+                        #両方が2回成功した時
                         elif all_complete and suc == 2 and flag_suc != 1:#elif all_complete and suc == 2 and flag_suc == 1:も考える。イオンの数の調整として行うていうか、step2=11の他の分岐として数えさせるでも良いかも
                             step_rouds += step
                             t_generation = (step_rouds+1) * 0.000001#＋1はDistillationを考慮している
@@ -1962,7 +2043,7 @@ def main_loop():
 
                           
                             t_elapsed = t_generation + t_latency_total #* total_golobal_count
-                        # print(total_golobal_count) # Removed excessive print
+                            # print(total_golobal_count) # Removed excessive print
 
 
 
@@ -2003,13 +2084,14 @@ def main_loop():
                                                               
                                 break
                             
-                            else:
+                            else:#Dis失敗の場合
                                 fail[0] +=1
                                 fail[1] += 1
                                 segments = [RepeaterSegment(i, sim_params["n_ELs"]) for i in range(sim_params["num_segments"]) ] #セグメントの初期化
                                 step = 0
                                 print(f"失敗{fail}回目")
                                 flag.append(1)
+                                flag_num.append(0)
                                 
                         
                         photon_num.append(ion-1) #何も光子がこなかったとき、関数の性質上個々に置く
