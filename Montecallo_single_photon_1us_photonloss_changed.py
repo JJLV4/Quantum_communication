@@ -1841,12 +1841,15 @@ def main_loop():
                   ion_time = [0]
                   bom = 0
                   bom2 = 0
-                  bom_count = []
+                  bom_count = [0]
+                  bom_count = np.array(bom_count)
                   bob2_count = []
                   boo = [0]
                   second_atem = []
                   remain_num = [0] #pileまでのカウンタ
                   remain = [0] #pileの保存ver
+                  sucstep = 0
+                  df = 0
 
 
 
@@ -1883,6 +1886,16 @@ def main_loop():
                         all_complete = run_simulation(segments, sim_params,method_choice,e,memcount,flag_suc)
                         step += 1
 
+                        if sucstep >= 1 and suc == 2: #sucの調整。イオンの調整はbomで行う
+                            sucstep += 1    
+                            if sucstep == 10 and not all_complete:
+                                suc = 1
+                                sucstep = 0
+
+                            elif flag_suc == 1:
+                                sucstep = 0
+                                suc = 1    
+
 
                         if all_complete and suc == 1:#両方のみが1回、成功した時
                             print(f"1回目両方完了{suc},ion{ion}")
@@ -1903,6 +1916,7 @@ def main_loop():
                             boo.append(1)
 
 
+                        
 
                         
                     
@@ -1943,9 +1957,11 @@ def main_loop():
                                        
 
                                 if remove != 0:
+                                    print(f"1にしかならないハズ : {remove}")
                                     #bomはあとで
                                     if flag[remove] == 2:#sucとoneの順番#onesucが成功した時にion-2するためのbom
                                         if len(ion_time) > 3 :
+                                            #suc = 2が途中で成功する確率がある。これを考慮しなければならないまた、suc =0にするタイミングも！！
                                             if ion_time[3] - ion_time[2] <= 10 and boo[3] == 1 :#sucは10us引き継げる性質を利用して、このion_timeやflgの概念から切り離すことが大事
                                                 bom2 = 1 #bom2で一つ目を消すまで待つ
                                                 bob2_count.append(0)
@@ -1957,7 +1973,12 @@ def main_loop():
                                             else:#10us以内にこなかった場合はシンプルにbomで消す。
                                                 bom = 1
                                                 bom_count.append(0)  
-                                                flag[remove] = 0 #これにより、sucの待機時間に変な操作が行われないようにする。
+                                                del ion_time[1]
+                                                del ion_time[1]
+                                                del boo[1]
+                                                del boo[1]
+                                                del flag[1]
+                                                
 
                                                   
                                             
@@ -1965,8 +1986,12 @@ def main_loop():
                                         else:#ある時間後にけすような操作
                                             bom = 1
                                             bom_count.append(0)
-                                            flag[remove] = 0 #これにより、sucの待機時間に変な操作が行われないようにする。
-
+                                            del ion_time[1]
+                                            del ion_time[1]
+                                            del boo[1]
+                                            del boo[1]
+                                            del flag[1] #2つのみの場合なので、delで良い.また、bomの場合は、消えるのは、1番目の要素なので、1とした
+                                            
 
 
                                     elif flag[remove] == 1:#oneとsucの順で帰ってきた場合
@@ -2036,14 +2061,145 @@ def main_loop():
 
                                     if num_len(flag) >= 2:#余剰flagの削除
                                         for i in range(flag_num):
-                                            if i != 0 :
+                                            if i != 0 and i % 2 != 0:#左を基準にするから、i%2としてかまわない
                                                 if  ion_time[i+1] - ion_time[i] > 10 :
                                                     del flag[i]
                                                     del flag_num[i]
                                                     del pile_step[i]
 
                                                    
+                        if bom == 1 :
+                            
+                            for i in range(num_len(bom_count)):
+                                if i != 0:
+                                    bom_count[i] += 1
 
+                            if np.any(bom_count == 10):
+                                ion -= 3
+                                bom =0
+                                del bom_count[1]
+                                # del ion_time[1] #bomの時は、いらないのでは？イオンの操作だけで十分
+                                # del ion_time[1]
+                                # del boo[1]
+                                # del boo[1]
+
+                            
+                
+
+                        elif bom2 == 1:# suc one one の場合の挙動。suc one one one suc にも対応させたい
+
+                            for i in range(num_len(bob2_count)):
+                                if i % 2 != 0:
+                                    bob2_count[i] += 1
+
+                            if bob2_count[1] >= ion_time[1+1] - ion_time[1] :#2つめのヘラルドが帰ってきてからの振る舞い
+                                if ion_time[1+2] == True and boo[1+2] == 1 and bob2_count[1] <= 10 and ion_time[1+2] - ion_time[1+1] <= 10:#3つ目があるとき
+                                    del ion_time[1+1]
+                                    del boo[1+1]
+                                    ion -= 1
+                                    
+                                elif bob2_count[1] <= 10 :
+                                    if ion_time[1+2] - ion_time[1+1] > 10 or ion_time[1+2] == False:#3つめが無いときもしくは、離れているとき
+                                        del ion_time[1]
+                                        del ion_time[1]
+                                        del boo[1]
+                                        del boo[1]
+                                        bom2 = 0
+                                        del bob2_count[1]
+                                        del flag_num[1]
+                                        del flag[1]
+                                        ion -= 3
+                                        
+
+                                        
+
+                                        if ion_time[1 + 1] == False :#flagが無いときはパスする
+                                            pass
+
+                                        if ion_time[1] == True and ion_time[2] == True and ion_time[2] - ion_time[1] <= 10 and flag[1] == True:#flagの値調整
+                                            
+                                            
+                                            if boo[1] == 1 and boo[2] == 2:
+                                                flag[1] = 1
+                                                
+
+                                            elif boo[1] == 2 and boo[2] == 1:
+                                                flag[1] = 2
+                                                
+
+                                            elif boo[1] == 1 and boo[2] == 1:
+                                                flag[1] = 3
+                                                
+
+                                            elif boo[1] == 2 and boo[2] == 2:
+                                                del flag[1]
+                                                del flag_num[1]
+                                                del boo[1]
+                                                del boo[1]
+                                                del ion_time[1]
+                                                del ion_time[1]
+
+                                                  
+
+
+                                            
+
+                                elif bob2_count[1] == 11 :
+                                    del ion_time[1]
+                                    del ion_time[1]
+                                    del boo[1]
+                                    del boo[1]
+                                    bom2 = 0
+                                    del bob2_count[1]
+                                    # while df != 1: 
+                                        #     i = 2*i + 1 
+
+                                        #     if ion_time[i + 1] == False :
+                                        #         break
+
+                                        #     if ion_time[1] == True and ion_time[2] == True and ion_time[2] - ion_time[1] <= 10 and flag[1] == :
+                                                
+                                                
+                                        #         if boo[1] == 1 and boo[2] == 2:
+                                        #             flag[1] = 1
+                                                    
+
+                                        #         elif boo[1] == 2 and boo[2] == 1:
+                                        #             flag[1] = 2
+                                                    
+
+                                        #         elif boo[1] == 1 and boo[2] == 1:
+                                        #             flag[1] = 3
+                                                    
+
+                                        #         elif boo[1] == 2 and boo[2] == 2:
+                                        #             del flag[1]
+                                        #             del flag_num[1]
+                                        #             del boo[1]
+                                        #             del boo[1]
+                                        #             del ion_time[1]
+                                        #             del ion_time[1]
+
+                            if num_len(flag) >= 2:#余剰flagの削除
+                                            for i in range(flag_num):
+                                                if i != 0 and i % 2 != 0:
+                                                    if  ion_time[i+1] - ion_time[i] > 10 :
+                                                        del flag[i]
+                                                        del flag_num[i]
+                                                        del pile_step[i]
+                
+
+
+                                    
+
+                                            
+
+                                    
+
+
+
+
+                                            
 
 
 
@@ -2086,11 +2242,13 @@ def main_loop():
                                 if suc_compare_step[1] < onside_sucstep[1] :
                                     flag.append(1) #1のappendで良いが、onsideが先行した場合は調整が必要。これも、3,4,5で変わってくる。
                                     pile_step.append(step2) 
+                                    sucstep = step2
                                     step2 = 0
                                     #suc = 0
                                 else:
                                     flag.append(2)
                                     pile_step.append(step2) 
+                                    sucstep = step2
                                     step2 = 0
                                     
                                 onside_sucnum -= 1 #3つめ4つめ~10個目ときたときの対応が出来ない     
