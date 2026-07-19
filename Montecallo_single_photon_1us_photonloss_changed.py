@@ -1838,6 +1838,17 @@ def main_loop():
                   suc_compare_step = [0]
                   pile_step = [0] #10us以内にまった時間をヘラルドを進める要素として追加
                   step2 = 0
+                  ion_time = [0]
+                  bom = 0
+                  bom2 = 0
+                  bom_count = []
+                  bob2_count = []
+                  boo = [0]
+                  second_atem = []
+                  remain_num = [0] #pileまでのカウンタ
+                  remain = [0] #pileの保存ver
+
+
 
                   if Sndmethod_choice =="A":
                     F_list_eachattempt = []#仮として、Fの原型を残している。ELを増やすときはここを改造,しっかりstepとの関係を考える
@@ -1872,19 +1883,39 @@ def main_loop():
                         all_complete = run_simulation(segments, sim_params,method_choice,e,memcount,flag_suc)
                         step += 1
 
+
+                        if all_complete and suc == 1:#両方のみが1回、成功した時
+                            print(f"1回目両方完了{suc},ion{ion}")
+                            photon_num.append(ion)
+                            suc_compare_step.append(step)
+                            ion_time.append(step)
+                            boo.append(2)
+                            break 
+
                          #片方だけ成功した時の処理 : 下に影響してくるので先に考える
-                        if segments.one_lode == True:#単純に片方のローディングが成功した時のイオン増加を記録 
+                        elif segments.one_lode == True:#単純に片方のローディングが成功した時のイオン増加を記録 
                             onside_sucnum += 1
                             ion += 1
                             segments.one_lode = False
                             onside_sucstep.append(step) 
+                            print(f"1回目片方のみ完了{suc},ion{ion}")
+                            ion_time.append(step)
+                            boo.append(1)
+
+
 
                         
                     
                         if np.any(flag >= 1):#100us待つ為の関数として使うと良い
-                            for i in range(len(flag_num)):  
-                                if i != 0:  
+                            for i in range(len(flag)):  #ローディングスワップが帰ってくるまでに待つ時間
+                                if i != 0 and second_atem[0] != i:  
                                     flag_num[i] += 1
+
+                                elif i != 0 and second_atem[0] == i:
+                                    remain_num[i] += 1
+                                        
+
+
 
 
                                 if suc_compare_step[1] == True:#sucの調整
@@ -1897,43 +1928,125 @@ def main_loop():
                                 if flag_num[i] == 100 - pile_step[i] and i != 0:
                                     remove = i
                                     
-                                    del pile_step[remove]
+                                    #del pile_step[remove]　#最後にまとめてやらないとズレる
+
+                                elif second_atem[0] == i and remain_num[1] == remain[1]:#攻めの1。本当はremain_num[i] == remain[i]にしたいが、デバックのために
+                                    remove = i
+                                    del second_atem[0] 
+                                    del remain_num[1]
+                                    del remain[1]
+
+                                else:
+                                    remove = 0        
+
+
                                        
 
                                 if remove != 0:
+                                    #bomはあとで
+                                    if flag[remove] == 2:#sucとoneの順番#onesucが成功した時にion-2するためのbom
+                                        if len(ion_time) > 3 :
+                                            if ion_time[3] - ion_time[2] <= 10 and boo[3] == 1 :#sucは10us引き継げる性質を利用して、このion_timeやflgの概念から切り離すことが大事
+                                                bom2 = 1 #bom2で一つ目を消すまで待つ
+                                                bob2_count.append(0)
+                                                #bomが終わればflag=3にする。boo=1より
+                                                second_atem.append(1)#removeは1になるはずだから、デバックがてら1にした
+                                                remain.append(ion_time[2]-ion_time[1])
+                                                flag[remove] = 0 #これにより、sucの待機時間に変な操作が行われないようにする。
 
-                                    if flag[remove] == 2:#onesucが成功した時にion-2するためのbom
-                                        bom = 1
-                                        bom_count.append(0)
+                                            else:#10us以内にこなかった場合はシンプルにbomで消す。
+                                                bom = 1
+                                                bom_count.append(0)  
+                                                flag[remove] = 0 #これにより、sucの待機時間に変な操作が行われないようにする。
 
-                                    elif flag[remove] == 1:#one_sucが先に帰ってきた場合
+                                                  
+                                            
+
+                                        else:#ある時間後にけすような操作
+                                            bom = 1
+                                            bom_count.append(0)
+                                            flag[remove] = 0 #これにより、sucの待機時間に変な操作が行われないようにする。
+
+
+
+                                    elif flag[remove] == 1:#oneとsucの順で帰ってきた場合
                                         if len(ion_time) > 3:
-                                            if ion_time[3] - ion_time[2] <= 10 and boo[3] == 1 :
+                                            if ion_time[3] - ion_time[2] <= 10 and boo[3] == 1 :#boo=1はワンサイドboo=2は両方
+                                                remain.append(ion_time[2]-ion_time[1])
+                                                second_atem.append(1)#removeは1になるはずだから、デバックがてら1にした
                                                 del ion_time[1]
+                                                del boo[1]
                                                 ion -= 1
-                                                flag[remove] == 2 #boo[3] == 1、つまり、ワンサイドより、suc oneの順番で光子が入る事状況の処理に、flag[remove] = 2にすることで持って行く
-
+                                                flag[remove] = 2 #boo[3] == 1、つまり、ワンサイドより、suc oneの順番で光子が入る事状況の処理に、flag[remove] = 2にすることで持って行く
+                                                
 
                                             else:
                                                  del ion_time[1]
                                                  del ion_time[1] #長さが3だから見られるトリック
-                                                 ion -= 2
-                                                 remove_element.append(remove)           
+                                                 del boo[1]
+                                                 del boo[1]
+                                                 ion -= 3 #プログラム上、両方を消すときは、-2で考える
+                                                            
 
                                         else:
                                             del ion_time[1]
                                             del ion_time[1] #長さが3だから見られるトリック
-                                            ion -= 2  
-                                            remove_element.append(remove)      
+                                            del boo[1]
+                                            del boo[1]
+                                            ion -= 3
+                                            
+
+
+                                    elif flag[remove] == 3:#oneとoneが10us以内に出来たときの処理
+                                        if len(ion_time) > 3:
+                                            if ion_time[3] - ion_time[2] <= 10 and boo[3] == 1 :#boo=1はワンサイドboo=2は両方
+                                                remain.append(ion_time[2]-ion_time[1])
+                                                second_atem.append(1)#removeは1になるはずだから、デバックがてら1にした
+                                                del ion_time[1]
+                                                del boo[1]
+                                                ion -= 1
+                                                flag[remove] = 3 #boo[3] == 1、つまり、ワンサイドより、suc oneの順番で光子が入る事状況の処理に、flag[remove] = 2にすることで持って行く
+                                            
+                                            elif ion_time[3] - ion_time[2] <= 10 and boo[3] == 2 :
+                                                remain.append(ion_time[2]-ion_time[1])
+                                                second_atem.append(1)#removeは1になるはずだから、デバックがてら1にした
+                                                del ion_time[1]
+                                                del boo[1]
+                                                ion -= 1
+                                                flag[remove] = 2  
+
+                                              
+
+
+
+                                            else:#oneとoneのみの場合
+                                                 del ion_time[1]
+                                                 del ion_time[1] #長さが3だから見られるトリック
+                                                 ion -= 3 #プログラム上、両方を消すときは、-2で考える
+                                                 del boo[1]
+                                                 del boo[1]           
+
+                                        else:#oneとoneのみの場合
+                                            del ion_time[1]
+                                            del ion_time[1] #長さが3だから見られるトリック
+                                            ion -= 3 
+                                            del boo[1]
+                                            del boo[1]
+
+
+                                    if num_len(flag) >= 2:#余剰flagの削除
+                                        for i in range(flag_num):
+                                            if i != 0 :
+                                                if  ion_time[i+1] - ion_time[i] > 10 :
+                                                    del flag[i]
+                                                    del flag_num[i]
+                                                    del pile_step[i]
+
+                                                   
 
 
 
 
-                                     
-                                    del flag_num[remove]
-                                    del flag[remove]
-                                    ion -= 2 #段階的にイオンは減らす必要がある。別に関数を作るべき
-                                    remove = 0
                                     
 
                         if flag_suc == 1: #成功したDistillationが届くまでの時間
@@ -1966,7 +2079,7 @@ def main_loop():
                                 break
 
 
-                            #3つ目がこないことを前提としている要修正
+                            #この後3つ目が来ても、flag関数で調整し、対応出来る様になってる
                             elif step2 <= 11 and onside_sucnum == 1:#このコードを通る時は、sucが少なくとも、一つ成功した時に10us前後に片方のイオンが成功した時。
                                 
                                 
@@ -1979,7 +2092,8 @@ def main_loop():
                                     flag.append(2)
                                     pile_step.append(step2) 
                                     step2 = 0
-                                    onside_sucnum -= 1 #3つめ4つめ~10個目ときたときの対応が出来ない 
+                                    
+                                onside_sucnum -= 1 #3つめ4つめ~10個目ときたときの対応が出来ない     
                                 flag_num.append(0)
                                 photon_num.append(ion-1)#sucはionが一つ多いとしてみている。
                                 break
@@ -2013,7 +2127,7 @@ def main_loop():
                                 suc = 0
                                 onside_sucnum -= 2
                                 pile_step.append(oneside_step)
-                                flag.append(2) #onsideが先行した場合より、90usで消すように仕向けた。ただこれだけだと、3つめ4つめに対応出来ない。
+                                flag.append(3) #onsideが先行した場合より、90usで消すように仕向けた。ただこれだけだと、3つめ4つめに対応出来ない。
                                 flag_num.append(0)
                                 photon_num.append(ion-1)#sucはionが一つ多いとしてみている。
                                 oneside_step = 0
@@ -2024,19 +2138,13 @@ def main_loop():
 
 
 
-                        
+                            
 
-                        #------------------------------------------------------------------------両方と片方で2つが10usに出来た時のイオンの数も考慮、このときは100us待つが、両方の時は、消さず片方の時が分かった時のみ消すというトリッキーな事をしないと行けない        
-
-                        if all_complete and suc == 1:#両方のみが1回、成功した時
-                            print(f"1回目完了{suc},ion{ion}")
-                            photon_num.append(ion)
-                            suc_compare_step.append(step)
-                            break    
+                           
 
                         
                         #両方が2回成功した時
-                        elif all_complete and suc == 2 and flag_suc != 1:#elif all_complete and suc == 2 and flag_suc == 1:も考える。イオンの数の調整として行うていうか、step2=11の他の分岐として数えさせるでも良いかも
+                        if all_complete and suc == 2 and flag_suc != 1:#elif all_complete and suc == 2 and flag_suc == 1:も考える。イオンの数の調整として行うていうか、step2=11の他の分岐として数えさせるでも良いかも
                             step_rouds += step
                             t_generation = (step_rouds+1) * 0.000001#＋1はDistillationを考慮している
                             t_latency_total =param_dict.get("t_CNOT") + param_dict.get("t_QR") + 0.0001
