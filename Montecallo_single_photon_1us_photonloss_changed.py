@@ -1915,7 +1915,9 @@ def main_loop():
                             ion_time.append(step)
                             boo.append(1)
 
-
+                        elif all_complete and suc == 2:
+                            ion_time.append(step)
+                            boo.append(2)
                         
 
                         
@@ -2157,31 +2159,34 @@ def main_loop():
                                         del boo[1]
                                         del ion_time[1]
                                         del ion_time[1]
+                                        bom2 = 0
 
-                                        while True:
-                                                    if boo[1] == 1 and boo[2] == 2:
-                                                        flag[1] = 1
-                                                        break
-                                                        
+                                        if ion_time[1] == True and ion_time[2] == True and ion_time[2] - ion_time[1] <= 10 and flag[1] == True:
 
-                                                    elif boo[1] == 2 and boo[2] == 1:
-                                                        flag[1] = 2
-                                                        break
-                                                        
+                                            while True:
+                                                        if boo[1] == 1 and boo[2] == 2:
+                                                            flag[1] = 1
+                                                            break
+                                                            
 
-                                                    elif boo[1] == 1 and boo[2] == 1:
-                                                        flag[1] = 3
-                                                        break
-                                                        
+                                                        elif boo[1] == 2 and boo[2] == 1:
+                                                            flag[1] = 2
+                                                            break
+                                                            
 
-                                                    elif boo[1] == 2 and boo[2] == 2:#2つ成功がヘラルドで分かった場合はflag毎取り除く
-                                                        del flag[1]
-                                                        del flag_num[1]
-                                                        del boo[1]
-                                                        del boo[1]
-                                                        del ion_time[1]
-                                                        del ion_time[1]
-                                                        
+                                                        elif boo[1] == 1 and boo[2] == 1:
+                                                            flag[1] = 3
+                                                            break
+                                                            
+
+                                                        elif boo[1] == 2 and boo[2] == 2:#後のセットが
+                                                            del flag[1]
+                                                            del flag_num[1]
+                                                            del boo[1]
+                                                            del boo[1]
+                                                            del ion_time[1]
+                                                            del ion_time[1]
+                                                            
 
                                                   
 
