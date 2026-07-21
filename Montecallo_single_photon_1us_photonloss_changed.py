@@ -1845,7 +1845,7 @@ def main_loop():
                   bom_count = np.array(bom_count)
                   bob2_count = []
                   boo = [0]
-                  second_atem = []
+                  second_atem = [0]
                   remain_num = [0] #pileまでのカウンタ
                   remain = [0] #pileの保存ver
                   sucstep = 0
@@ -1875,7 +1875,7 @@ def main_loop():
                       ion +=1
                       
 
-                      print(f"デバック:suc{suc}ion{ion}")
+                      print(f"デバック:suc{suc}ion{ion-1}")
                       
 
                       segments = [RepeaterSegment(i, sim_params["n_ELs"]) for i in range(sim_params["num_segments"]) ] #セグメントの初期化
@@ -1898,7 +1898,7 @@ def main_loop():
 
 
                         if all_complete and suc == 1:#両方のみが1回、成功した時
-                            print(f"1回目両方完了{suc},ion{ion}")
+                            print(f"1回目両方完了{suc},ion{ion-1}")
                             photon_num.append(ion)
                             suc_compare_step.append(step)
                             ion_time.append(step)
@@ -1906,12 +1906,12 @@ def main_loop():
                             break 
 
                          #片方だけ成功した時の処理 : 下に影響してくるので先に考える
-                        elif segments.one_lode == True:#単純に片方のローディングが成功した時のイオン増加を記録 
+                        elif segments[0].one_load == True:#単純に片方のローディングが成功した時のイオン増加を記録 
                             onside_sucnum += 1
                             ion += 1
-                            segments.one_lode = False
+                            segments[0].one_load = False
                             onside_sucstep.append(step) 
-                            print(f"1回目片方のみ完了{suc},ion{ion}")
+                            print(f"1回目片方のみ完了{suc},ion{ion-1}")
                             ion_time.append(step)
                             boo.append(1)
 
@@ -1919,7 +1919,8 @@ def main_loop():
                             ion_time.append(step)
                             boo.append(2)
                         
-                        if boo[1] == 2 and boo[2] == 2  :#suc=2の時の処理、ion_timeに残しておくと、flagの処理でバグる
+                        if len(boo) >= 3 and  boo[1] == 2 and boo[2] == 2  :#suc=2の時の処理、ion_timeに残しておくと、flagの処理でバグる
+                            
                             if ion_time[2] - ion_time[1] >= 10:#ion_time[2] - ion_time[1] <= 10 に絶対なるはずなのでそれを調べる
                                 print("exceed")
 
@@ -1929,38 +1930,46 @@ def main_loop():
                             del boo[1]
                             #flagはそもそも立たないから消さない。また、ion-も2つの成功状況よりしない
 
+                        else:
+                            pass    
+
 
                         
                     
                         if np.any(flag >= 1):#100us待つ為の関数として使うと良い
+                            #print("入ってる？")
                             for i in range(len(flag)):  #ローディングスワップが帰ってくるまでに待つ時間
-                                if i != 0 and second_atem[0] != i:  
-                                    flag_num[i] += 1
+                                
 
-                                elif i != 0 and second_atem[0] == i:
+                                if i != 0 and len(second_atem) >= 2 and second_atem[1] == i:
                                     remain_num[i] += 1
                                         
+                                elif i != 0 :  
+                                    flag_num[i] += 1 
+                                    #print("ヘラルディング信号")       
 
 
 
 
-                                if suc_compare_step[1] == True:#sucの調整
+                                if len(suc_compare_step)>= 2 and suc_compare_step[1] == True:#sucの調整
                                     if step - suc_compare_step[1] > 10 and not flag_suc:#Distilationが成功ルートに入ると、suc関係なくなるから
                                         suc = 1 #1つの成功であったのが1つの成功になる。10us以内に2つ目のsucができなかったら、出来ていないも同然だから1にして大丈夫
                                         del suc_compare_step[1] #suc_compare_stepはsuc==1の時しか増えないから大丈夫    
 
                                 
                                 #-----ヘラルドが帰ってきたときの処理を始める際のシグナルとしてflagを使う------
-                                if flag_num[i] == 100 - pile_step[i] and i != 0 and second_atem[0] != i:#second_atemでflag_numの効力を消す
+                                
+                                if  len(second_atem) >= 2 and second_atem[1] == i and remain_num[1] == remain[1]+1 :#攻めの1。本当はremain_num[i] == remain[i]にしたいが、デバックのために,また、remain[1]+1にした理由としては、bomからのflagの性質を引き継ぐため
+                                    remove = i
+                                    del second_atem[1] 
+                                    del remain_num[1]
+                                    del remain[1]
+
+                                elif flag_num[i] == 100 - pile_step[i] and i != 0 :#second_atemでflag_numの効力を消す
                                     remove = i
                                     
                                     #del pile_step[remove]　#最後にまとめてやらないとズレる
-
-                                elif second_atem[0] == i and remain_num[1] == remain[1]+1:#攻めの1。本当はremain_num[i] == remain[i]にしたいが、デバックのために,また、remain[1]+1にした理由としては、bomからのflagの性質を引き継ぐため
-                                    remove = i
-                                    del second_atem[0] 
-                                    del remain_num[1]
-                                    del remain[1]
+    
 
                                 else:
                                     remove = 0        
@@ -2016,6 +2025,7 @@ def main_loop():
 
 
                                     elif flag[remove] == 1:#oneとsucの順で帰ってきた場合
+                                        print("犯人きみかな？")
                                         if len(ion_time) > 3:
                                             if ion_time[3] - ion_time[1] <= 10 and boo[3] == 1 :#boo=1はワンサイドboo=2は両方
                                                 remain.append(ion_time[2]-ion_time[1])
@@ -2092,6 +2102,7 @@ def main_loop():
 
                                                    
                         if bom == 1 :
+                            print("bom!!!")
                             
                             for i in range(num_len(bom_count)):
                                 if i != 0:
@@ -2111,6 +2122,7 @@ def main_loop():
                 
 
                         elif bom2 == 1:# suc one one の場合の挙動。suc one one one suc にも対応させたい
+                            print("bom2!!!")
 
                             for i in range(num_len(bob2_count)):
                                 if i % 2 != 0:
@@ -2256,6 +2268,7 @@ def main_loop():
                         #両方のイオンが成功してから、もう一つの両方のイオンが出るまでの待機時間。片方イオンが出来たら、100us待つようにしないといけない。 
                         if suc == 2 and not all_complete:
                             step2 += 1 #これも配列にして処理しないと追えないかも
+                            print("suc2さんあなたが犯人です")
 
                             #両方が一組しか成功していないときの待ち時間のリミット
                             if step2 == 11 and onside_sucnum == 0: #10+1と言う意味,onside_sucnum == 0で一つしか成功していないことを強調。
@@ -2265,6 +2278,9 @@ def main_loop():
                                 ion -= 2 #意味的には-1で良いと思うかも知れないが、プログラム的に-2にしないといけない。 
                                 photon_num.append(ion)
                                 del suc_compare_step[1]
+                                del ion_time[-1]
+                                del boo[-1]#10us前後にないときは、一番後ろにいるということ！
+
 
                                 
 
@@ -2277,21 +2293,21 @@ def main_loop():
                                 
                                 
                                 if suc_compare_step[1] < onside_sucstep[1] :
-                                    flag.append(1) #1のappendで良いが、onsideが先行した場合は調整が必要。これも、3,4,5で変わってくる。
+                                    flag = np.append(flag, 1)  #1のappendで良いが、onsideが先行した場合は調整が必要。これも、3,4,5で変わってくる。
                                     pile_step.append(step2) 
                                     sucstep = step2
                                     step2 = 0
                                     #suc = 0
                                 else:
-                                    flag.append(2)
+                                    flag = np.append(flag, 2) 
                                     pile_step.append(step2) 
                                     sucstep = step2
                                     step2 = 0
                                     
                                 onside_sucnum -= 1 #3つめ4つめ~10個目ときたときの対応が出来ない     
                                 flag_num.append(0)
-                                photon_num.append(ion-1)#sucはionが一つ多いとしてみている。
-                                break
+                                # photon_num.append(ion-1)#sucはionが一つ多いとしてみている。
+                                # break #ここでbreakするとsucが3になって狂う
                             
 
 
@@ -2319,14 +2335,16 @@ def main_loop():
                             #前後10usに光子の保存がなければ、100のカウントダウンに入れてイオンで処理しよう
                             #片方で2つ成功した際のヘラルドカウントダウン　これも問答無用でイオンを2つ減らすまでのカウントダウンの共通関数で処理するべき
                             elif onside_sucnum == 2 and oneside_step <= 11:
-                                suc = 0
+                                #suc = 0
+                                print("犯人こいつ説")
                                 onside_sucnum -= 2
                                 pile_step.append(oneside_step)
-                                flag.append(3) #onsideが先行した場合より、90usで消すように仕向けた。ただこれだけだと、3つめ4つめに対応出来ない。
+                                flag = np.append(flag, 3) #onsideが先行した場合より、90usで消すように仕向けた。ただこれだけだと、3つめ4つめに対応出来ない。
                                 flag_num.append(0)
                                 photon_num.append(ion-1)#sucはionが一つ多いとしてみている。
-                                oneside_step = 0
-                                break
+                                print(f"flag{flag[1]}")
+                                #oneside_step = 0 #breakはやらない方がよい
+                                #break
                                 
 
 
