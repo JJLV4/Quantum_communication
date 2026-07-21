@@ -1919,6 +1919,16 @@ def main_loop():
                             ion_time.append(step)
                             boo.append(2)
                         
+                        if boo[1] == 2 and boo[2] == 2  :#suc=2の時の処理、ion_timeに残しておくと、flagの処理でバグる
+                            if ion_time[2] - ion_time[1] >= 10:#ion_time[2] - ion_time[1] <= 10 に絶対なるはずなのでそれを調べる
+                                print("exceed")
+
+                            del ion_time[1]
+                            del ion_time[1]
+                            del boo[1]
+                            del boo[1]
+                            #flagはそもそも立たないから消さない。また、ion-も2つの成功状況よりしない
+
 
                         
                     
@@ -1940,13 +1950,13 @@ def main_loop():
                                         del suc_compare_step[1] #suc_compare_stepはsuc==1の時しか増えないから大丈夫    
 
                                 
-
-                                if flag_num[i] == 100 - pile_step[i] and i != 0:
+                                #-----ヘラルドが帰ってきたときの処理を始める際のシグナルとしてflagを使う------
+                                if flag_num[i] == 100 - pile_step[i] and i != 0 and second_atem[0] != i:#second_atemでflag_numの効力を消す
                                     remove = i
                                     
                                     #del pile_step[remove]　#最後にまとめてやらないとズレる
 
-                                elif second_atem[0] == i and remain_num[1] == remain[1]:#攻めの1。本当はremain_num[i] == remain[i]にしたいが、デバックのために
+                                elif second_atem[0] == i and remain_num[1] == remain[1]+1:#攻めの1。本当はremain_num[i] == remain[i]にしたいが、デバックのために,また、remain[1]+1にした理由としては、bomからのflagの性質を引き継ぐため
                                     remove = i
                                     del second_atem[0] 
                                     del remain_num[1]
@@ -1955,6 +1965,7 @@ def main_loop():
                                 else:
                                     remove = 0        
 
+                                #-----------------------------------------------------------------------
 
                                        
 
@@ -1964,12 +1975,12 @@ def main_loop():
                                     if flag[remove] == 2:#sucとoneの順番#onesucが成功した時にion-2するためのbom
                                         if len(ion_time) > 3 :
                                             #suc = 2が途中で成功する確率がある。これを考慮しなければならないまた、suc =0にするタイミングも！！
-                                            if ion_time[3] - ion_time[2] <= 10 :#sucは10us引き継げる性質を利用して、このion_timeやflgの概念から切り離すことが大事
+                                            if ion_time[3] - ion_time[1] <= 10 :#sucは10us引き継げる性質を利用して、このion_timeやflgの概念から切り離すことが大事
                                                 bom2 = 1 #bom2で一つ目を消すまで待つ
                                                 bob2_count.append(0)
                                                 #bomが終わればflag=3にする。boo=1より
                                                 second_atem.append(1)#removeは1になるはずだから、デバックがてら1にした
-                                                remain.append(ion_time[2]-ion_time[1])
+                                                remain.append(ion_time[3]-ion_time[2])
                                                 flag[remove] = 0 #これにより、sucの待機時間に変な操作が行われないようにする。
 
                                             else:#10us以内にこなかった場合はシンプルにbomで消す。
@@ -1980,6 +1991,9 @@ def main_loop():
                                                 del boo[1]
                                                 del boo[1]
                                                 del flag[1]
+                                                del flag_num[1]
+                                                del pile_step[1]
+
                                                 suc = 1
                                                 
 
@@ -1995,12 +2009,15 @@ def main_loop():
                                             del boo[1]
                                             del flag[1] #2つのみの場合なので、delで良い.また、bomの場合は、消えるのは、1番目の要素なので、1とした
                                             suc = 1
+                                            del flag_num[1]
+                                            del pile_step[1]
+
                                             
 
 
                                     elif flag[remove] == 1:#oneとsucの順で帰ってきた場合
                                         if len(ion_time) > 3:
-                                            if ion_time[3] - ion_time[2] <= 10 and boo[3] == 1 :#boo=1はワンサイドboo=2は両方
+                                            if ion_time[3] - ion_time[1] <= 10 and boo[3] == 1 :#boo=1はワンサイドboo=2は両方
                                                 remain.append(ion_time[2]-ion_time[1])
                                                 second_atem.append(1)#removeは1になるはずだから、デバックがてら1にした
                                                 del ion_time[1]
@@ -2062,10 +2079,12 @@ def main_loop():
                                             del boo[1]
                                             del boo[1]
 
+                                    elif flag[remove] == 0:#bomを待っている間
+                                        pass #bomのwaitingtime
 
                                     if num_len(flag) >= 2:#余剰flagの削除
                                         for i in range(flag_num):
-                                            if i != 0 and i % 2 != 0:#左を基準にするから、i%2としてかまわない
+                                            if i != 0 and i % 2 != 0:#左を基準にするから、i%2としてかまわない、また、ionの組が、2/1/2になることはあり得ないのでi%2と出来る
                                                 if  ion_time[i+1] - ion_time[i] > 10 :
                                                     del flag[i]
                                                     del flag_num[i]
@@ -2097,10 +2116,10 @@ def main_loop():
                                 if i % 2 != 0:
                                     bob2_count[i] += 1
 
-                            if ion_time[2] - ion_time[1] <= 10:#そもそも10us圏内になければ待つこともしない3つ目がなければ強制的に消すから大丈夫
+                            if ion_time[2] - ion_time[1] <= 10:#そもそも10us圏内になければ待つこともしない3つ目がなければ強制的に消すから大丈夫。そうでないとbob2発動しないが、念のため
 
 
-                                if bob2_count[1] >= ion_time[1+1] - ion_time[1] :#2つめのヘラルドが帰ってきてからの振る舞い
+                                if bob2_count[1] >= ion_time[2] - ion_time[1] :#そもそも、1つめと2つ目の間が10usにならないと行けない。正直いらないかも知れないがあって損しない
                                     if ion_time[1+2] == True and bob2_count[1] <= 10 and ion_time[1+2] - ion_time[1] <= 10 and boo[2] == 1:#3つ目があるとき
                                         del ion_time[1+1]
                                         del boo[1+1]
@@ -2152,13 +2171,16 @@ def main_loop():
                                                         del ion_time[1]
                                                         
 
-                                    elif boo[1] == 2 and boo[2] == 2:#10usの場合のみという制約をつける
+                                    elif boo[1] == 2 and boo[2] == 2 and bob2_count[1] <= 10:#10usの場合のみという制約をつける
                                         del flag[1]
                                         del flag_num[1]
                                         del boo[1]
                                         del boo[1]
                                         del ion_time[1]
                                         del ion_time[1]
+
+                                        del bob2_count[1]
+
                                         bom2 = 0
 
                                         if ion_time[1] == True and ion_time[2] == True and ion_time[2] - ion_time[1] <= 10 and flag[1] == True:
@@ -2179,7 +2201,7 @@ def main_loop():
                                                             break
                                                             
 
-                                                        elif boo[1] == 2 and boo[2] == 2:#後のセットが
+                                                        elif boo[1] == 2 and boo[2] == 2:#これもflagの種類として、flag関数に入れても良いかも
                                                             del flag[1]
                                                             del flag_num[1]
                                                             del boo[1]
@@ -2362,6 +2384,7 @@ def main_loop():
                                 flag_suc = 1
                                 suc = 0
                                 photon_num.append(ion)
+                                
 
                                                               
                                 break
