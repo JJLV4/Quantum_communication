@@ -1941,10 +1941,10 @@ def main_loop():
 
 
                         #最初に置くことでバグらないようにする。
-                        if len(boo) >= 3 and  boo[1] == 2 and boo[2] == 2  :#suc=2の時の処理、ion_timeに残しておくと、flagの処理でバグる
+                        if len(boo) >= 3 and  boo[1] == 2 and boo[2] == 2 and ion_time[2] - ion_time[1] <= 10:#suc=2の時の処理、ion_timeに残しておくと、flagの処理でバグる
                                                     
                             if ion_time[2] - ion_time[1] >= 10:#ion_time[2] - ion_time[1] <= 10 に絶対なるはずなのでそれを調べる
-                                print("exceedは出て欲しくないお、ion_timeの入れ方にもんだいあり")
+                                print("exceedは出て欲しくないお、if文で出ないようにしたから大丈夫。この場合は10us過ぎた時という表記で自動的にけしてくれる")
 
                             del ion_time[1]
                             del ion_time[1]
