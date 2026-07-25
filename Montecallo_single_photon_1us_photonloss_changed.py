@@ -1992,17 +1992,17 @@ def main_loop():
 
                                     if len(second_atem) >= 2 and i < second_atem[1]:  
                                         flag_num[i] += 1 
-                                        print(f"hey :: step2:{step2},onside{onside_sucnum},sucstep{sucstep},suc{suc}")
+                                        print(f"hi :: step2:{step2},onside{onside_sucnum},sucstep{sucstep},suc{suc}")
                                         print(f"flag_num{flag_num[i]}")
 
                                     elif len(second_atem) >= 2 and i > second_atem[1]:
                                         flag_num[i-second_atem[1]] += 1
-                                        print(f"hey :: step2:{step2},onside{onside_sucnum},sucstep{sucstep},suc{suc}")
+                                        print(f"hi :: step2:{step2},onside{onside_sucnum},sucstep{sucstep},suc{suc}")
                                         print(f"flag_num{flag_num[i]}")
 
                                     else:
                                         flag_num[i] += 1
-                                        print(f"hey :: step2:{step2},onside{onside_sucnum},sucstep{sucstep},suc{suc}")
+                                        print(f"hi :: step2:{step2},onside{onside_sucnum},sucstep{sucstep},suc{suc}")
                                         print(f"flag_num{flag_num[i]}")
 
                                                 
@@ -2037,16 +2037,23 @@ def main_loop():
                                     # del remain[1]
 
                                 elif len(second_atem) >= 2 and second_atem[1] == i and remain_num[1] != remain[1]+1 :
-                                    print("kaka")
+                                    if len(flag_num) >= i+1: 
+                                        print(f"kaka{flag_num[i]}")
                                     pass
 
                                 elif len(second_atem) >= 2 and i > second_atem[1]:
                                     print("you?")
+                                    if  len(flag_num) >= i+1: 
+                                        print(f"you!{flag_num[i]}") 
+
+                                    else:
+                                        print(f"remain{remain_num[i]}")   
+
                                     if flag_num[i-second_atem[1]] == 100 - pile_step[i-second_atem[1]] and i != 0 :
                                         remove = i - second_atem[1]
                                         remove_f = i
                                     else:
-                                        print("you!")    
+                                        print("you!") 
 
                                 elif flag_num[i] == 100 - pile_step[i] and i != 0 :#second_atemでflag_numの効力を消す
                                     remove = i
@@ -2056,7 +2063,7 @@ def main_loop():
     
 
                                 else:
-                                    print("一つもはいらん")
+                                    print(f"一つもはいらん{flag_num[i]}")
                                     remove = 0        
 
                                 #-----------------------------------------------------------------------
@@ -2123,13 +2130,19 @@ def main_loop():
                                                             del ion_time[1]
                                                             del ion_time[1]
 
-                                                elif ion_time[3] - ion_time[2] <= 10 and len(ion_time) == 3:
-                                                    bomon = 1
-                                                    blim.append(ion_time[2] - ion_time[1])
-                                                    del ion_time[1]
-                                                    del boo[1]
-                                                    onside_sucnum -= 1
-                                                    oneside_step = 0
+                                                elif ion_time[3] - ion_time[2] <= 10 and len(ion_time) >= 4:
+                                                    if len(ion_time) > 4 and ion_time[4] - ion_time[3] > 10:
+                                                        bomon = 1
+                                                        blim.append(ion_time[2] - ion_time[1])
+                                                        del ion_time[1]
+                                                        del boo[1]
+                                                        # onside_sucnum -= 1 #いらないのでは？
+                                                        # oneside_step = 0
+                                                    elif len(ion_time) == 4:
+                                                        bomon = 1
+                                                        blim.append(ion_time[2] - ion_time[1])
+                                                        del ion_time[1]
+                                                        del boo[1]
 
 
                                                     #print("onside-1しないといけないのでは")
@@ -2399,7 +2412,12 @@ def main_loop():
                             for i in range(len(bob2_count)):
                                 # if i % 2 != 0: #普通にiでやればいいのではワンちゃん違う
                                 #     bob2_count[i] += 1
-                                bob2_count[i] += 1
+                                if i != 0:
+                                    bob2_count[i] += 1
+
+                            if bob2_count[1] >10 :
+                                print(f"ion{ion_time},bob2_count{bob2_count}")  
+                                flag.append(1)      
 
                             if ion_time[2] - ion_time[1] <= 10:#そもそも10us圏内になければ待つこともしない3つ目がなければ強制的に消すから大丈夫。そうでないとbob2発動しないが、念のため
 
@@ -2507,7 +2525,7 @@ def main_loop():
 
                             else:#flagを前提としているのでここにくることはない
                                 print("something wrong")
-                                flag.append(1)
+                                flag.append(1)#エラーがでる。デバック用
 
                                
                                 
@@ -2574,7 +2592,7 @@ def main_loop():
                                 suc = 0
                                 ion -= 2 #意味的には-1で良いと思うかも知れないが、プログラム的に-2にしないといけない。 
                                 photon_num.append(ion)
-                                # del suc_compare_step[1]
+                                del suc_compare_step[1]
                                 del ion_time[-1]
                                 del boo[-1]#10us前後にないときは、一番後ろにいるということ！
 
@@ -2586,23 +2604,25 @@ def main_loop():
 
 
                             #この後3つ目が来ても、flag関数で調整し、対応出来る様になってる
-                            elif step2 <= 11 and onside_sucnum == 1:#このコードを通る時は、sucが少なくとも、一つ成功した時に10us前後に片方のイオンが成功した時。
+                            elif step2 <= 11 and onside_sucnum == 1 and sucstep == 0:#このコードを通る時は、sucが少なくとも、一つ成功した時に10us前後に片方のイオンが成功した時。sucstep==0の条件を入れないと、suc2 not all_compleateに入ってしまい、suconが新たに来たと勘違いして、flagを作ってしまうので、注意
                                 
                                 print("suconのエラー")
                                 oneside_step = 0 #物理特性上、恐らくこれを入れて、oneを調整するのありかも。厳密とはいえないのかな？
                                 
                                 #if suc_compare_step[-1] < onside_sucstep[-1] :#この配列であってるのかな？笑
-                                if ion_time[-1] < ion_time[-2]:#仮　これで行ける説    
+                                if  suc_compare_step[1] == ion_time[-1]:#仮　これで行ける説    
                                     flag = np.append(flag, 1)  #1のappendで良いが、onsideが先行した場合は調整が必要。これも、3,4,5で変わってくる。
                                     pile_step.append(step2) #sucができてからの時間がstep2である。
                                     sucstep = 11 - step2
                                     step2 = 0
                                     if sucstep == 0:
                                         sucstep2 = 1
+                                    del suc_compare_step[1]    
                                     #if sucstep == 0:suc = 1を次のステップで
                                 else:
                                     flag = np.append(flag, 2) 
                                     pile_step.append(ion_time[-1] - ion_time[-2])#仮 これで行ける説
+                                    del suc_compare_step[1]
                                     #pile_step.append(suc_compare_step[-1] - onside_sucstep[-1])#oneができてから、sucが出来るまでのステップ 
                                     #print(f"suc{suc_compare_step[1]}-onside{onside_sucstep[1]}=pile{pile_step}")
                                     
@@ -2638,7 +2658,7 @@ def main_loop():
                                 ion -= 1
                                 onside_sucnum -= 1
                                 oneside_step = 0
-                                print(f"ion{ion_time}")
+                                
                                 if len(ion_time) >= 4:
                                     del ion_time[-1]
                                     del boo[-1]
@@ -2646,6 +2666,8 @@ def main_loop():
                                 else:
                                     del ion_time[1]
                                     del boo[1]
+
+                                print(f"ion{ion_time}")    
                                     
                                 # del onside_sucstep[1]
 
