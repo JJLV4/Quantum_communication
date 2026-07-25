@@ -17,6 +17,8 @@ from qutip_qip.operations import cnot # CNOTをqutip_qipからインポート
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.colors import LogNorm
 from scipy.ndimage import gaussian_filter # ぼかし用のライブラリ
+from collections import Counter
+
 
 #from google.colab import drive
 #drive.mount('/content/drive') # Excelを使用する場合はコメントアウトを外す2
@@ -1587,6 +1589,46 @@ def heatmap_analysis(a, b, attempts):
     
     del database_segment
 
+
+def pychart(ion_max):
+        # 2. 各数字の出現回数をカウント
+    counts = Counter(ion_max)
+
+    # 3. 指定の項目（2, 3, 4, その他）ごとに集計
+    target_counts = {
+        "2": counts.get(2, 0),
+        "3": counts.get(3, 0),
+        "4": counts.get(4, 0),
+        "その他": sum(
+            count for num, count in counts.items() if num not in (2, 3, 4)
+        ),
+    }
+
+    # 4. 出現回数（値）が多い順にソート（並び替え）
+    sorted_items = sorted(
+        target_counts.items(), key=lambda item: item[1], reverse=True
+    )
+
+    labels = [item[0] for item in sorted_items]  # 項目名
+    values = [item[1] for item in sorted_items]  # 出現回数
+
+    # 5. パイチャート（円グラフ）の描画設定
+    plt.figure(figsize=(6, 6))
+
+    # 円グラフを作成 (autopct='%1.1f%%' で割合をパーセント表示)
+    plt.pie(
+        values,
+        labels=labels,
+        autopct="%1.1f%%",
+        startangle=90,
+        counterclock=False,  # 時計回りに多い順で配置
+    )
+
+    plt.title("ion_max Occurrence Distribution")
+
+    # グラフを表示
+    plt.show()
+
 # --- 6. メインループ ---
 def main_loop():
 
@@ -1736,6 +1778,8 @@ def main_loop():
           Fidelity_for_histgram_Hop = []
           save_Dispro = []
           time_before_distillation = []
+          ion_max = []
+          ion_num = []
           sel=int(input('Enter the architecher 1:2bell 2:4bell ')) #the basis of the 4bell swap but now I consider only 2bell case
           suc = 0
           step2 = 0
@@ -1819,8 +1863,8 @@ def main_loop():
                   fail.append(0)
                   fail.append(0)
                   photon_num = []
-                  ion_num = []
-                  ion_max = []
+                  #ion_num = []
+                  #ion_max = []
                   remove = 0
                   suc = 0
                   ion = 0
@@ -1895,6 +1939,64 @@ def main_loop():
                         all_complete = run_simulation(segments, sim_params,method_choice,e,memcount,flag_suc)
                         step += 1
 
+
+                        #最初に置くことでバグらないようにする。
+                        if len(boo) >= 3 and  boo[1] == 2 and boo[2] == 2  :#suc=2の時の処理、ion_timeに残しておくと、flagの処理でバグる
+                                                    
+                            if ion_time[2] - ion_time[1] >= 10:#ion_time[2] - ion_time[1] <= 10 に絶対なるはずなのでそれを調べる
+                                print("exceedは出て欲しくないお、ion_timeの入れ方にもんだいあり")
+
+                            del ion_time[1]
+                            del ion_time[1]
+                            del boo[1]
+                            del boo[1]
+                            #flagはそもそも立たないから消さない。また、ion-も2つの成功状況よりしない
+                            if bom2 == 1:#bom2で計算がズレないようにここで処理をする
+                                bom2 = 0
+                                del bob2_count[1]
+                                del flag_num[1]
+                                del pile_step[1]#gensprakのご教授
+                                flag = np.delete(flag, 1)#bom2から来ているときは、flag=-1とflag_num=1000消す。
+                                suc = 1 #suc=0にして、2つしかない事をいう
+                                sucstep = 0
+                                
+                                if len(ion_time) <= 2 :#flagが無いときはパスする
+                                    pass
+
+                                if  len(ion_time) >= 3 and ion_time[2] - ion_time[1] <= 10 and len(flag) >= 2:#flagの値調整
+                                    
+                                    while True:
+                                        if boo[1] == 1 and boo[2] == 2:
+                                            flag[1] = 1
+                                            break
+                                            
+
+                                        elif boo[1] == 2 and boo[2] == 1:
+                                            flag[1] = 2
+                                            break
+                                            
+
+                                        elif boo[1] == 1 and boo[2] == 1:
+                                            flag[1] = 3
+                                            break
+                                            
+
+                                        elif boo[1] == 2 and boo[2] == 2:#2つ成功がヘラルドで分かった場合はflag毎取り除く
+                                            flag = np.delete(flag, 1)
+                                            del flag_num[1]
+                                            del pile_step[1]#gensprakのご教授
+                                            del boo[1]
+                                            del boo[1]
+                                            del ion_time[1]
+                                            del ion_time[1]
+                                                                                        
+
+
+
+
+                        else:
+                            pass 
+
                         if sucstep2 == 1:#sucstepの調整これで,suconが上手くいく
                             suc = 1
                             sucstep2 = 0
@@ -1962,19 +2064,7 @@ def main_loop():
                             ion_time.append(step)
                             boo.append(2)
                         
-                        if len(boo) >= 3 and  boo[1] == 2 and boo[2] == 2  :#suc=2の時の処理、ion_timeに残しておくと、flagの処理でバグる
-                            
-                            if ion_time[2] - ion_time[1] >= 10:#ion_time[2] - ion_time[1] <= 10 に絶対なるはずなのでそれを調べる
-                                print("exceedは出て欲しくないお、ion_timeの入れ方にもんだいあり")
-
-                            del ion_time[1]
-                            del ion_time[1]
-                            del boo[1]
-                            del boo[1]
-                            #flagはそもそも立たないから消さない。また、ion-も2つの成功状況よりしない
-
-                        else:
-                            pass    
+                           
 
 
                         
@@ -2064,7 +2154,8 @@ def main_loop():
 
                                 else:
                                     print(f"一つもはいらん{flag_num[i]}")
-                                    remove = 0        
+                                    remove = 0 
+                                    remove_f =  0       
 
                                 #-----------------------------------------------------------------------
 
@@ -2108,21 +2199,21 @@ def main_loop():
                                                             break
                                                             
     
-                                                        elif boo[1] == 2 and boo[2] == 1:
+                                                        elif boo[3] == 2 and boo[4] == 1:
                                                             flag = np.append(flag, 2)
                                                             flag_num.append(100-(ion_time[3]-ion_time[1]))
                                                             pile_step.append(0)
                                                             break
                                                             
     
-                                                        elif boo[1] == 1 and boo[2] == 1:
+                                                        elif boo[3] == 1 and boo[4] == 1:
                                                             flag = np.append(flag, 3)
                                                             flag_num.append(100-(ion_time[3]-ion_time[1]))
                                                             pile_step.append(0)
                                                             break
                                                             
     
-                                                        elif boo[1] == 2 and boo[2] == 2:#2つ成功がヘラルドで分かった場合はflag毎取り除く
+                                                        elif boo[3] == 2 and boo[4] == 2:#2つ成功がヘラルドで分かった場合はflag毎取り除く
                                                             #flag = np.delete(flag, 1) #元々ないからいらない
                                                             #del flag_num[1] #元々ないからいらない
                                                             del boo[1]
@@ -2415,7 +2506,7 @@ def main_loop():
                                 if i != 0:
                                     bob2_count[i] += 1
 
-                            if bob2_count[1] >10 :
+                            if bob2_count[1] >10 :#デバック要員
                                 print(f"ion{ion_time},bob2_count{bob2_count}")  
                                 flag.append(1)      
 
@@ -2570,8 +2661,10 @@ def main_loop():
                             flag_sucnum += 1
                             print(f"成功した後のion{ion}")
                             if flag_sucnum == 100:
-                                ion_num = np.mean(photon_num)
-                                ion_max = np.max(photon_num)
+                                ion -= 1
+                                photon_num.append(ion)#ディスティレーションによって、一個消費する。
+                                ion_num.append(np.mean(photon_num))
+                                ion_max.append(np.max(photon_num))
                                 #photon_num= np.array(photon_num)
                                 photon_num.clear()
                                 break        
@@ -2748,6 +2841,7 @@ def main_loop():
                                 Fidelity_for_histgram_Hop.append(Distilation_caluculation_single_photon(mode="normal"))#Hop by Hopに限る
                                 flag_suc = 1
                                 suc = 0
+                                
                                 photon_num.append(ion)
                                 
 
@@ -2891,6 +2985,9 @@ def main_loop():
           #heatmap_analysis(execution_times, Fidelity_for_histgram_Hop, attempts)
 
           print(f"イオンの平均使用数{np.mean(ion_num)},イオンの最大使用数{np.max(ion_max)}")
+
+          pychart(ion_max)
+          print(f"ion{ion_max}")
 
 
 
