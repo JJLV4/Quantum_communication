@@ -2088,7 +2088,7 @@ def main_loop():
                                     elif len(second_atem) >= 2 and i > second_atem[1]:
                                         flag_num[i-second_atem[1]] += 1
                                         print(f"hi :: step2:{step2},onside{onside_sucnum},sucstep{sucstep},suc{suc}")
-                                        print(f"flag_num{flag_num[i]}")
+                                        print(f"flag_num{flag_num[i-second_atem[1]]}")
 
                                     else:
                                         flag_num[i] += 1
