@@ -129,11 +129,14 @@ def main():
             l = param_dict["l"]
             eta_det = param_dict["eta_DET"]
             gammaf = param_dict["Gamma_f"]
+            gammaf = 50
             #eta_afc = param_dict["eta_AFC"]
             eta_afc =1 #高橋先生はここを1にする
             eta_shift = param_dict["eta_shift"]
             eta_buff = param_dict["eta_BUFF"]
             n = param_dict["n"]
+
+            #p_link_pure = (1-(1-np.exp(-0.046*l)*eta_bsm*(eta_det)**required_measurements)**gammaf) * (prob_afc)**2
 
             p_single_link = (1-(1-np.exp(-0.046*l)*eta_bsm*(eta_det)**required_single_photon_measurements)**gammaf) * (eta_afc)**2 #光子が違うため、0.046にした
             # p_single_link = (1-(1-np.exp(-alpha*l)*eta_bsm*(eta_det)**required_single_photon_measurements)**gammaf) * (eta_afc * eta_shift)**2
@@ -204,9 +207,12 @@ def main():
                 n = param_dict["n"]
 
                 if sync_method == "A":
-                    eta_qr = eta_loss * (eta_afc **(n-1)) * eta_shift * eta_aom * eta_interface
+                    #eta_qr = eta_loss * (eta_afc **(n-1)) * eta_shift * eta_aom * eta_interface
+                    eta_qr = eta_loss  * eta_shift * eta_aom * 0.3#高橋先生に合わせた
+
                 elif sync_method == "B":
-                    eta_qr = eta_loss * eta_shift * eta_aom * eta_interface
+                    # eta_qr = eta_loss * eta_shift * eta_aom * eta_interface
+                    eta_qr = eta_loss * eta_shift * eta_aom * 0.3
                 else:
                     raise ValueError("You have not picked one of the two Q network methods")          
 
@@ -280,7 +286,7 @@ def main():
             # else:
             #     raise NotImplementedError
 
-            tau_arc = 2110 * 10**(-6)
+            tau_arc = 2110 * 0.000001
 
 
             return tau_arc, ttrans
@@ -305,6 +311,7 @@ def main():
             # j = 1 から N までの和（シグマ）を計算
             for i in range(len(N)):
                 subtotal = 0
+                print(f"Nは?{N[i]}")
                 for j in range(1, N[i] + 1):
                     # 1. 符号 (-1)^(j+1)
                     sign = (-1) ** (j + 1)
