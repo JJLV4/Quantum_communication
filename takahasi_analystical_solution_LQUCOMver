@@ -117,7 +117,7 @@ def main():
         This function takes into account operation times, transmission times etc.
         """
 
-        def calc_p_arc_gen(param_dict, required_single_photon_measurements=2):
+        def calc_p_arc_gen(param_dict, required_single_photon_measurements=1):
             """
             Calculates the probability for entanglement to be generated within a single elementary link, given system parameters
 
@@ -129,7 +129,8 @@ def main():
             l = param_dict["l"]
             eta_det = param_dict["eta_DET"]
             gammaf = param_dict["Gamma_f"]
-            eta_afc = param_dict["eta_AFC"]
+            #eta_afc = param_dict["eta_AFC"]
+            eta_afc =1 #高橋先生はここを1にする
             eta_shift = param_dict["eta_shift"]
             eta_buff = param_dict["eta_BUFF"]
             n = param_dict["n"]
@@ -151,7 +152,7 @@ def main():
             # return total_p_arc_gen
             return p_single_link
 
-        def calc_eta_qr(param_dict, sync_method = "A", required_single_photon_measurements=2):
+        def calc_eta_qr(param_dict, sync_method = "A", required_single_photon_measurements=1):
             """
             Calculates the efficiency of the router, eta_qr, depending on which scheme we are looking at. The scheme can either be "a" or "b".
 
@@ -173,7 +174,8 @@ def main():
                 eta_13c = param_dict["eta_13C"]
                 eta_buff = param_dict["eta_BUFF"]
 
-                eta_afc = param_dict["eta_AFC"]
+                #eta_afc = param_dict["eta_AFC"]
+                eta_afc =  1
                 n = param_dict["n"]
 
                 if sync_method == "A":
@@ -298,10 +300,11 @@ def main():
             float : 全リンクが成功するまでの平均試行回数
             """
             total_attempts = []
-            N = N_qpu - 1  # 並列リンクの総数
+            N = N_qpu  # 並列リンクの総数
 
             # j = 1 から N までの和（シグマ）を計算
             for i in range(len(N)):
+                subtotal = 0
                 for j in range(1, N[i] + 1):
                     # 1. 符号 (-1)^(j+1)
                     sign = (-1) ** (j + 1)
@@ -315,7 +318,9 @@ def main():
 
                     # 4. j項目の値を計算して加算
                     term = sign * combination * (1.0 / denominator)
-                    total_attempts.append(term)
+                    subtotal += term
+
+                total_attempts.append(subtotal)
 
 
             total_attempts = np.array(total_attempts)        
@@ -408,11 +413,16 @@ def main():
         tauARC, ttrans = calc_timings(param_dict, qr_entanglement_distribution_prob)
 
         big_N = param_dict["big_N"]
+        print(f"Nは{big_N}")
         etaepps = param_dict["eta_EPPS"]
         repps = param_dict["R_EPPS"]
         omega_epps = etaepps*repps
 
-        p_arc_gen_2 = 1 - (1-p_arc_gen*etaepps*eta_QR**2)**10 - 10*p_arc_gen*(1-p_arc_gen*etaepps*eta_QR**2)**9 #pが2つ同時に成功する確率
+        
+
+        p_arc_gen_2 = 1 - (1-p_arc_gen*etaepps*(eta_QR)**2)**10 - 10*(p_arc_gen*etaepps*(eta_QR)**2)*(1-p_arc_gen*etaepps*(eta_QR)**2)**9 #pが2つ同時に成功する確率
+
+        print(f"p_2{p_arc_gen_2},p_arc_gen{p_arc_gen},etaepps{etaepps},etaQR{eta_QR}")
 
 
 
@@ -422,6 +432,8 @@ def main():
         #edr = 1/tauARC * (1-(1-qr_entanglement_distribution_prob)**(omega_epps*(tauARC - ttrans)))**big_N
 
         edr = tauARC * attempts
+        print(f"tau{tauARC}")
+        print(f"attempts{attempts}")
 
         # eta_QR = calc_eta_qr(param_dict)
         # param_dict["eta_QR"] = eta_QR
