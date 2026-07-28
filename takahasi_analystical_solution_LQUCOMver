@@ -126,7 +126,8 @@ def main():
             """
             eta_bsm = param_dict["eta_BSM"]
             alpha = param_dict["alpha"]
-            l = param_dict["l"]
+            #l = param_dict["l"]
+            l = param_dict.get("t_AFC")*200000
             eta_det = param_dict["eta_DET"]
             gammaf = param_dict["Gamma_f"]
             gammaf = 50

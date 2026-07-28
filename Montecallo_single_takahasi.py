@@ -1648,6 +1648,8 @@ def main_loop():
         "eta_EPPS": param_dict["eta_EPPS"]
     }
 
+    print(f"eta_EPPS{sim_params["eta_EPPS"]}prob_qr{prob_qr},prob_EL{prob_el}")
+
 
 
 
