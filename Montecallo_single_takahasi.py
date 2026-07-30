@@ -17,6 +17,7 @@ from qutip_qip.operations import cnot # CNOTをqutip_qipからインポート
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.colors import LogNorm
 from scipy.ndimage import gaussian_filter # ぼかし用のライブラリ
+import sys
 
 #from google.colab import drive
 #drive.mount('/content/drive') # Excelを使用する場合はコメントアウトを外す2
@@ -1827,11 +1828,13 @@ def main_loop():
                         # 1回のシミュレーション
                   
                   while True:
-                    if not segments[0].el_states: #EL生成   
+                    #N=1を想定しているので[False]
+            
+                    if segments[0].el_states == [False]: #EL生成   
                         all_complete,N_suc = run_simulation(segments, sim_params,method_choice,e,int(N_multi))
                         step += (int(N_multi)+100)
                         print("EL成功")
-                    elif segments[0].el_states: #ローディング
+                    elif segments[0].el_states  == [True]: #ローディング
                         all_complete,N_suc = run_simulation(segments, sim_params,method_choice,e,int(N_multi))
                         if segments[0].RP: 
                             print("ローディング")
@@ -1848,7 +1851,12 @@ def main_loop():
                             print("成功!!!")
 
                         else:
-                            print("失敗!!!")    
+                            print("失敗!!!")  
+
+
+                    else:
+                        print("エラー条件に達したためプログラムを終了します")
+                        sys.exit()          
 
                         
 
