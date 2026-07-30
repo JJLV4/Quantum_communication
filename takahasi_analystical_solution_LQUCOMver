@@ -494,6 +494,8 @@ def main():
         plt.xlabel(xlabel)
         plt.ylabel("Entanglement Distribution Rate")
         plt.show()
+        np.save("ydata_only.npy", ydata)
+        print("ydata を ydata_only.npy に保存しました！")
 
     ############################################### Code base Begins here ###############################################
 
