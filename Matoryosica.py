@@ -232,6 +232,8 @@ def bellswaping_Hop(Fidelity):
     return Ftotal            
 
 def plotter_lneth(y_Fidelity,y_time,y_tau,x_data):
+
+  print(y_Fidelity)
     
   plt.figure(figsize=(10, 5))
   plt.plot(x_data, y_Fidelity, color='blue', marker='o', linestyle='None', label='Fidelity')
@@ -267,6 +269,70 @@ def difference(mean_time,data2):
 
     print(f"誤差率: {epsilon:.4f} %")
 
+def plot_and_calculate_error(x_data, y_data, y_data2, label1="y_data", label2="y_data2", xlabel="X-axis", ylabel="Y-axis"):
+    """x_data に対して y_data と y_data2 を重ねてプロットし、
+
+    要素ごとの相対誤差（誤差率 [%]）を計算して別グラフで描画する関数
+    """
+    # NumPy配列に変換（計算を楽にするため）
+    x = np.array(x_data)
+    y1 = np.array(y_data)
+    y2 = np.array(y_data2)
+
+    # --------------------------------------------------
+    # 1. 重ね合わせグラフの描画
+    # --------------------------------------------------
+    plt.figure(figsize=(8, 5))
+    plt.plot(x, y1, label=label1, marker="o", linestyle="-")
+    plt.plot(x, y2, label=label2, marker="x", linestyle="--")
+
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.title("Comparison of y_data and y_data2")
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()  # 1つ目のグラフを表示
+
+    # --------------------------------------------------
+    # 2. 誤差率（相対誤差 [%]）の計算
+    # --------------------------------------------------
+    # 基準となる値（ここでは y1）に対する誤差率: |y1 - y2| / |y1| * 100
+    # 0割り（ZeroDivisionError）を防ぐため np.where を使用
+    relative_error = np.where(
+        y1 != 0, np.abs(y1 - y2) / np.abs(y1) * 100, 0.0
+    )
+
+    # --------------------------------------------------
+    # 3. 誤差率グラフの描画
+    # --------------------------------------------------
+    plt.figure(figsize=(8, 4))
+    plt.plot(
+        x,
+        relative_error,
+        color="red",
+        marker="s",
+        linestyle="-",
+        label="Relative Error (%)",
+    )
+
+    plt.xlabel(xlabel)
+    plt.ylabel("Relative Error [%]")
+    plt.title("Relative Error between y_data and y_data2")
+    plt.grid(True)
+    plt.legend()
+    plt.tight_layout()
+    plt.show()  # 2つ目のグラフを表示
+
+    print(relative_error)
+
+    # 計算した誤差率の配列を返す
+    return relative_error
+
+
+
+
+
 def main_loop():
     
     
@@ -276,19 +342,22 @@ def main_loop():
     
     # ホームディレクトリ以下の相対パスを指定
     # 例：デスクトップの「research」フォルダにある場合
-    #relative_path = "Desktop\研究データ\simulation_database.npy"　#忠実な値
-    relative_path = "Desktop\研究データ\simulation_database_prob100%.npy" #95%確認用
+    #relative_path = "Desktop\研究データ\simulation_database.npy"　#忠実な値100usのモンテカルロ
+    #relative_path = "Desktop\研究データ\simulation_database_prob100%.npy" #95%確認用
+    relative_path = "Desktop\研究データ\simulation_database_takahasi_compare_ver.npy"#高橋先生最大値で妥当性を確認用
     # パスを結合
     full_path = os.path.join(home, relative_path)
 
     try:
         data = np.load(full_path)
+        print(data[0])
+        print(data[100])
         print(f"✅ ローカルCドライブからロード完了: {full_path}")
     except FileNotFoundError:
         print(f"❌ ファイルが見つかりません。パスを確認してください: {full_path}")
         return
     
-    #誤差率簡易版の為のmean_timeのインポート
+    #誤差率簡易版の為のmean_timeのインポート　恐らくあんま意味ない。一応残してる
     relative_path2 = "Desktop\研究データ\mean_time_segment2.npy"
     
     # パスを結合
@@ -338,6 +407,19 @@ def main_loop():
 
 
 
+    #解析解を取り入れてシンプルに誤差を取る用
+    relative_path4 = "Desktop\研究データ\ydata_only.npy" #高橋先生理論
+    full_path4 = os.path.join(home, relative_path4)
+
+    try:
+        ddff = np.load(full_path4)
+        print(f"✅ ローカルCドライブからロード完了: {full_path4}")
+    except FileNotFoundError:
+        print(f"❌ ファイルが見つかりません。パスを確認してください: {full_path4}")
+        return
+
+
+
 
 
           
@@ -366,6 +448,7 @@ def main_loop():
                     time.append(totaltime)
                     for i in range(len(simdata)):
                         Fidelity.append(simdata[i][1])
+                        print(f"you{Fidelity}")
                     if num_len+1 >= 2: 
                         Total_Fidelity.append(bellswaping_Hop(Fidelity))
                     else:
@@ -401,9 +484,12 @@ def main_loop():
 
     #誤差率簡易版
     difference(mean_time,data2)#モンテカルロ法との直接比較のために作ったが、意味ない
+
+    plot_and_calculate_error(x_data,ddff, mean_time,label1= "ANALITYCAL", label2="MONTECALLO", xlabel="Distance", ylabel="Y-axis")
     
     
 
+    
 
     for i in range(num_len+1):
          print(f"θ{theta[i]}")
