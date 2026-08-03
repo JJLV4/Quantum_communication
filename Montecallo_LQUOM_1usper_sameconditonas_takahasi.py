@@ -1100,8 +1100,8 @@ def Distilation_caluculation(e,F_total,mode):
   if mode =="brentq":
     return Total_Distilation_Fidelity - F_max
   elif mode =="prob":
-    print(f"Distillation{prob}")
-    print(f"Hop by Hop {prob}")#prob**num_lenはメモリによって変わることに注意マトリョーシカプロトコルより、N=1のみで考えた
+    #print(f"Distillation{prob}")
+    #print(f"Hop by Hop {prob}")#prob**num_lenはメモリによって変わることに注意マトリョーシカプロトコルより、N=1のみで考えた
     return prob**(num_len)  
   else:
     return Total_Distilation_Fidelity
@@ -1163,8 +1163,8 @@ def Distilation_caluculation_single_photon(mode):#N=1の時のみで、100usの�
     if mode =="brentq":
         return Distilation
     elif mode =="prob":
-        print(f"Distillation{prob}")
-        print(f"Hop by Hop {prob}")#prob**num_lenはメモリによって変わることに注意マトリョーシカプロトコルより、N=1のみで考えた
+        #print(f"Distillation{prob}")
+        #print(f"Hop by Hop {prob}")#prob**num_lenはメモリによって変わることに注意マトリョーシカプロトコルより、N=1のみで考えた
         return 1 #2photon100%を考えたら1らしい。式を要修正！
         #return prob #N=1のときのみを考慮。それ以上はマトリョーシカメソッドで
     else:
@@ -1522,9 +1522,10 @@ def histgram(a,b,attempts):
     ax.set_title('3D Histogram of Simulation Results')
 
     plt.savefig('3d_histogram.png') # 画像として保存
-    np.save('simulation_database.npy', database_segment) 
-    print("Database saved as 'simulation_database.npy'")
+    np.save('simulation_database_LQUOM_1us_samecon_takahasi.npy', database_segment) 
+    print("Database saved as 'simulation_database_LQUOM_1us_samecon_takahasi.npy'")
     print(database_segment[0])
+    print(database_segment[1])
     del database_segment
 
 
@@ -1608,7 +1609,7 @@ def main_loop():
         "R_EPPS": param_dict["R_EPPS"],
         "t_AFC": param_dict["t_AFC"],
         "separate": param_dict["separate"],
-        "eta_EPPS": param_dict["eta_EPPS"]
+        "eta_EPPS": param_dict["eta_EPPS"],
     }
 
 
@@ -1777,6 +1778,7 @@ def main_loop():
                   fail.append(0)
                   fail.append(0)
                   forth =0
+                  suc = 0
                   #print("debug")
                   if Sndmethod_choice =="A":
                     F_list_eachattempt = []#仮として、Fの原型を残している。ELを増やすときはここを改造,しっかりstepとの関係を考える
@@ -1806,7 +1808,7 @@ def main_loop():
                         if suc == 2:
                             step2 += 1
                             if step2 == 11:#10+1と言う意味
-                                print(f"10us過ぎた時{suc}")
+                                #print(f"10us過ぎた時{suc}")
                                 step2 = 0
                                 suc = 0 
 
@@ -1814,7 +1816,7 @@ def main_loop():
 
 
                         if all_complete and suc == 1:
-                            print(f"1回目完了{suc}")
+                            #print(f"1回目完了{suc}")
                             break    
 
                         
@@ -1859,7 +1861,7 @@ def main_loop():
                             p = Disproba
 
                             if check_success(Disproba):#F_listを定義してからでないと行けない
-                                print(f"成功")
+                                #print(f"成功")
                                 Fidelity_for_histgram_Hop.append(Distilation_caluculation_single_photon(mode="normal"))#Hop by Hopに限る                                  
                                 break
                             
@@ -1868,7 +1870,7 @@ def main_loop():
                                 fail[1] += 1
                                 segments = [RepeaterSegment(i, sim_params["n_ELs"]) for i in range(sim_params["num_segments"]) ] #セグメントの初期化
                                 step = 0
-                                print(f"失敗{fail}回目")
+                                #print(f"失敗{fail}回目")
                                 
 
                            
@@ -1879,9 +1881,9 @@ def main_loop():
                     
                        
 
-                    # 進捗表示 (10%ごと)
-                        if (attempt + 1) % (attempts // 10 + 1) == 0:
-                            print(".", end="")
+                    # # 進捗表示 (10%ごと)
+                    #     if (attempt + 1) % (attempts // 10 + 1) == 0:
+                    #         print(".", end="")
 
 
               mean_ap = np.mean(execution_times)                   
