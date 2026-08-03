@@ -344,8 +344,8 @@ def main_loop():
     # 例：デスクトップの「research」フォルダにある場合
     #relative_path = "Desktop\研究データ\simulation_database.npy"　#忠実な値100usのモンテカルロ
     #relative_path = "Desktop\研究データ\simulation_database_prob100%.npy" #95%確認用
-    relative_path = "Desktop\研究データ\simulation_database_takahasi_compare_ver.npy"#高橋先生最大値で妥当性を確認用
-    # パスを結合
+    #relative_path = "Desktop\研究データ\simulation_database_takahasi_compare_ver.npy"#高橋先生最大値で妥当性を確認用
+    relative_path = "Desktop\研究データ\simulation_database_takahasi_normal.npy"
     full_path = os.path.join(home, relative_path)
 
     try:
@@ -397,6 +397,7 @@ def main_loop():
     #relative_path3 = "Desktop\研究データ\95tau.npy" #忠実な値
     relative_path3 = "Desktop\研究データ\95tau_nodis.npy" #確認用
     full_path3 = os.path.join(home, relative_path3)
+    
 
     try:
         tau = np.load(full_path3)
