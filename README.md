@@ -21,7 +21,9 @@ This code add distillation efect to Montecallo_simplest_ver.py.We get database w
 The simulation of distillation circulit.This code is incorporatede to Montecallo_distillitin_value.py.So please use just reference
 
 ---Matoryshika_method :Launched May 2 2026 14:59 Author joe---
-Comming soon!!
+This code ennables more faster simulation in the situation of caluculating ARC >= 2 than normal simulation by assembling 100000 data from normal simulation in the case of ARC=1.
+
+
 
 ---hybrid(lquom edr saigenn).py:Launched Mar 2026 20:00 Author arata---
 This program calculates the EDR by applying LQUOM parameters to the equations of the hybrid repeater model.
