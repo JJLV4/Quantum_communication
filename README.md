@@ -46,6 +46,19 @@ this code is analytical simulation code which smulate takahasi protocol by cordi
 ---tau_caluculation.py AUthor joe---
 this is code simulate the parameter of tau (https://gitlab.com/jianyaojin/lquom-simulations) for the finding memory time of Matoryosica method.
 
+---Montecalo_single_photon_1us_ion_caluculation.py Author joe---
+this code simulates Montecallo and count ion num sametime.
+
+---Montecalo_single_photon_1us_ion_caluculation_ionlimit.py Author joe---
+this code simulates Montecallo and count ion num sametime,and consider ion limit
+
+---Matuzaki_ion.py Author joe---
+this code simulates Montecallo and count ion num sametime whith easier protocol than Montecalo_single_photon_1us_ion_caluculation.py
+
+---Matuzaki_ion.py Author joe---
+this code simulates Montecallo and count ion num sametime whith easier protocol than Montecalo_single_photon_1us_ion_caluculation.py but more stlict condition than Matuzaki_ion.py.
+
+
 
 
 
