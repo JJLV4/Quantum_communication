@@ -17,6 +17,8 @@ from qutip_qip.operations import cnot # CNOTをqutip_qipからインポート
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.colors import LogNorm
 from scipy.ndimage import gaussian_filter # ぼかし用のライブラリ
+from collections import Counter
+
 
 #from google.colab import drive
 #drive.mount('/content/drive') # Excelを使用する場合はコメントアウトを外す2
@@ -59,6 +61,8 @@ class RepeaterSegment:
         self.golobal_count = 0
 
         self.RP = False
+
+        self.one_load = False
 
 
     def reset_process(self):
@@ -209,9 +213,18 @@ class RepeaterSegment:
 
                     if check_success(params["prob_Global_Swap"]):
                         self.global_swap_done = True
+                        mark = 1
 
                     else:
                         self.reset_process()
+                        mark = 0
+
+                    if mark == 0 and check_success(np.sqrt(params["prob_Global_Swap"])):
+                        self.one_load = True
+
+                            
+
+
 
                     self.golobal_count +=1
 
@@ -410,9 +423,13 @@ class RepeaterSegment:
         self.is_complete = False
         self.current_bucket_idx = 0
         self.global_swap_done = False
+        
 
 # --- 3. シミュレーション実行関数 ---
-def run_simulation(segments, params,method,e,memcount):
+def run_simulation(segments, params,method,e,memcount,flag):
+    # if flag ==1:
+    #     print("デバック")#成功した後も試行しているかの確認
+    
     for seg in segments:
           seg.step(params,method,e,memcount)
 
@@ -427,6 +444,7 @@ def run_simulation(segments, params,method,e,memcount):
             break
         #else:
             #print(f"how many els{seg.n_els}")
+        
     return all_done
 
 # --- 4. 可視化関数 (バケツリレー可視化強化版) ---
@@ -725,6 +743,9 @@ def calculate_probabilities_from_params(demo_choice, param_dict, architecture, a
         #prob_afc = param_dict.get("eta_AFC", 0.9)
         prob_afc = 1 #高橋先生ver
 
+
+        
+        gammaf = 50 # 周波数多重化1の時
         p_link_pure = (1-(1-np.exp(-0.046*l)*eta_bsm*(eta_det)**required_measurements)**gammaf) * (prob_afc)**2
         #p_link_pure = 1
         #p_link_pure = R_EPPS*eta_EPPS*(1-(1-np.exp(-alpha*l)*eta_bsm*(eta_det)**required_measurements)**gammaf) * (prob_afc)**2
@@ -763,6 +784,7 @@ def calculate_probabilities_from_params(demo_choice, param_dict, architecture, a
         print(f"Calculated Conn Prob: {eta_conn:.5f}")
         print(tau)
 
+        print(f"周波数多重化{gammaf}")
 
         return [p_link_pure, prob_afc, eta_qr, eta_conn]
 
@@ -1100,8 +1122,8 @@ def Distilation_caluculation(e,F_total,mode):
   if mode =="brentq":
     return Total_Distilation_Fidelity - F_max
   elif mode =="prob":
-    #print(f"Distillation{prob}")
-    #print(f"Hop by Hop {prob}")#prob**num_lenはメモリによって変わることに注意マトリョーシカプロトコルより、N=1のみで考えた
+    print(f"Distillation{prob}")
+    print(f"Hop by Hop {prob}")#prob**num_lenはメモリによって変わることに注意マトリョーシカプロトコルより、N=1のみで考えた
     return prob**(num_len)  
   else:
     return Total_Distilation_Fidelity
@@ -1163,8 +1185,8 @@ def Distilation_caluculation_single_photon(mode):#N=1の時のみで、100usの�
     if mode =="brentq":
         return Distilation
     elif mode =="prob":
-        #print(f"Distillation{prob}")
-        #print(f"Hop by Hop {prob}")#prob**num_lenはメモリによって変わることに注意マトリョーシカプロトコルより、N=1のみで考えた
+        print(f"Distillation{prob}")
+        print(f"Hop by Hop {prob}")#prob**num_lenはメモリによって変わることに注意マトリョーシカプロトコルより、N=1のみで考えた
         return 1 #2photon100%を考えたら1らしい。式を要修正！
         #return prob #N=1のときのみを考慮。それ以上はマトリョーシカメソッドで
     else:
@@ -1522,10 +1544,8 @@ def histgram(a,b,attempts):
     ax.set_title('3D Histogram of Simulation Results')
 
     plt.savefig('3d_histogram.png') # 画像として保存
-    np.save('simulation_database_LQUOM_1us_samecon_takahasi.npy', database_segment) 
-    print("Database saved as 'simulation_database_LQUOM_1us_samecon_takahasi.npy'")
-    print(database_segment[0])
-    print(database_segment[1])
+    np.save('simulation_database.npy', database_segment) 
+    print("Database saved as 'simulation_database.npy'")
     del database_segment
 
 
@@ -1569,6 +1589,46 @@ def heatmap_analysis(a, b, attempts):
     
     del database_segment
 
+
+def pychart(ion_max):
+        # 2. 各数字の出現回数をカウント
+    counts = Counter(ion_max)
+
+    # 3. 指定の項目（2, 3, 4, その他）ごとに集計
+    target_counts = {
+        "2": counts.get(2, 0),
+        "3": counts.get(3, 0),
+        "4": counts.get(4, 0),
+        "その他": sum(
+            count for num, count in counts.items() if num not in (2, 3, 4)
+        ),
+    }
+
+    # 4. 出現回数（値）が多い順にソート（並び替え）
+    sorted_items = sorted(
+        target_counts.items(), key=lambda item: item[1], reverse=True
+    )
+
+    labels = [item[0] for item in sorted_items]  # 項目名
+    values = [item[1] for item in sorted_items]  # 出現回数
+
+    # 5. パイチャート（円グラフ）の描画設定
+    plt.figure(figsize=(6, 6))
+
+    # 円グラフを作成 (autopct='%1.1f%%' で割合をパーセント表示)
+    plt.pie(
+        values,
+        labels=labels,
+        autopct="%1.1f%%",
+        startangle=90,
+        counterclock=False,  # 時計回りに多い順で配置
+    )
+
+    plt.title("ion_max Occurrence Distribution")
+
+    # グラフを表示
+    plt.show()
+
 # --- 6. メインループ ---
 def main_loop():
 
@@ -1594,6 +1654,9 @@ def main_loop():
     prob_el, prob_afc, prob_qr, prob_ec = probs
 
 
+    
+
+
 
 
 
@@ -1609,8 +1672,28 @@ def main_loop():
         "R_EPPS": param_dict["R_EPPS"],
         "t_AFC": param_dict["t_AFC"],
         "separate": param_dict["separate"],
-        "eta_EPPS": param_dict["eta_EPPS"],
+        "eta_EPPS": param_dict["eta_EPPS"]
     }
+
+
+
+    print(f"EL{prob_el}")
+
+    print(f"QR{prob_qr}")
+
+    print(f"EEPS効率{sim_params["eta_EPPS"]}")
+
+    print(f"R_EPPS{sim_params["R_EPPS"]}")
+
+    
+
+    print(f"100usあたりに出来るイオンの数{100*prob_qr*prob_el}")
+    
+    print(f"100usあたりに出来るベルペアの数{100*(prob_qr**2)*prob_el}")
+
+    print(f"100usあたりに出来るイオンの数EPPS生成効率考慮{100*prob_qr*prob_el*sim_params["eta_EPPS"]}")
+
+    print(f"100usあたりに出来るベルペアの数EPPS生成効率考慮{100*prob_qr*prob_el*(sim_params["eta_EPPS"]**2)}")
 
 
 
@@ -1695,9 +1778,12 @@ def main_loop():
           Fidelity_for_histgram_Hop = []
           save_Dispro = []
           time_before_distillation = []
+          ion_max = []
+          ion_num = []
           sel=int(input('Enter the architecher 1:2bell 2:4bell ')) #the basis of the 4bell swap but now I consider only 2bell case
           suc = 0
           step2 = 0
+          ion_limit = int(input('Enter the ion limit (Enter number, e.g., 100): '))
           if sel == 1:
               memcount = 10
               bell_num = 2
@@ -1777,9 +1863,48 @@ def main_loop():
                   fail = []
                   fail.append(0)
                   fail.append(0)
-                  forth =0
+                  photon_num = []
+                  #ion_num = []
+                  #ion_max = []
+                  remove = 0
                   suc = 0
+                  ion = 0
+                  forth =0
+                  flag_suc = 0
+                  flag_sucnum = 0
                   #print("debug")
+                  step3 = 0
+                  onside_sucnum = 0
+                  oneside_step = 0
+                  flag = [0]
+                  flag_num = [0]
+                  flag = np.array(flag)
+                  onside_sucstep = [0]
+                  suc_compare_step = [0]
+                  pile_step = [0] #10us以内にまった時間をヘラルドを進める要素として追加
+                  step2 = 0
+                  ion_time = [0]
+                  bom = 0
+                  bom2 = 0
+                  bom_count = [0]
+                  bom_count = np.array(bom_count)
+                  bob2_count = [0]
+                  boo = [0]
+                  second_atem = [0]
+                  remain_num = [0] #pileまでのカウンタ
+                  remain = [0] #pileの保存ver
+                  sucstep = 0
+                  breakmark = 0
+                  df = 0
+                  sucstep2 = 0
+                  sucstep3 = 0
+                  send = 0
+                  bomon = 0
+                  blim = [0]
+                  
+
+
+
                   if Sndmethod_choice =="A":
                     F_list_eachattempt = []#仮として、Fの原型を残している。ELを増やすときはここを改造,しっかりstepとの関係を考える
                    
@@ -1797,39 +1922,898 @@ def main_loop():
                   
 
                         # 1回のシミュレーション
-                  while suc != bell_num:      
-                      suc +=1  
+                  while flag_sucnum != 100:      
+                      suc +=1
+                      ion +=1
+                      
+
+                      print(f"デバック:suc{suc}ion{ion-1}")
+                      
+
                       segments = [RepeaterSegment(i, sim_params["n_ELs"]) for i in range(sim_params["num_segments"]) ] #セグメントの初期化
                       while True:
-                         
-                        all_complete = run_simulation(segments, sim_params,method_choice,e,memcount)
-                        step += 1
-                    #print("デバッグ")
-                        if suc == 2:
-                            step2 += 1
-                            if step2 == 11:#10+1と言う意味
-                                #print(f"10us過ぎた時{suc}")
+
+                        #self.one_load = True
+                        # if ion >=5:
+                        #     flag.append(1)
+                        if ion < ion_limit+1:#<=にしてはいけないion_limit+1にすることで、ionのズレを考慮した上でイオンの値を調整できる。(ionの値変だから)
+                                all_complete = run_simulation(segments, sim_params,method_choice,e,memcount,flag_suc)
+                                step += 1
+                                
+                        else:
+                                #segments = [RepeaterSegment(i, sim_params["n_ELs"]) for i in range(sim_params["num_segments"]) ] #セグメントの初期化
+                                all_complete = False
+
+                                #print("この時間あるか？")    
+                                step += 1
+
+                        
+
+                        #最初に置くことでバグらないようにする。
+                        if len(boo) >= 3 and  boo[1] == 2 and boo[2] == 2 and ion_time[2] - ion_time[1] <= 10:#suc=2の時の処理、ion_timeに残しておくと、flagの処理でバグる
+                                                    
+                            if ion_time[2] - ion_time[1] >= 10:#ion_time[2] - ion_time[1] <= 10 に絶対なるはずなのでそれを調べる
+                                print("exceedは出て欲しくないお、if文で出ないようにしたから大丈夫。この場合は10us過ぎた時という表記で自動的にけしてくれる")
+
+                            del ion_time[1]
+                            del ion_time[1]
+                            del boo[1]
+                            del boo[1]
+                            #flagはそもそも立たないから消さない。また、ion-も2つの成功状況よりしない
+                            if bom2 == 1:#bom2で計算がズレないようにここで処理をする
+                                bom2 = 0
+                                del bob2_count[1]
+                                del flag_num[1]
+                                del pile_step[1]#gensprakのご教授
+                                flag = np.delete(flag, 1)#bom2から来ているときは、flag=-1とflag_num=1000消す。
+                                suc = 1 #suc=0にして、2つしかない事をいう
+                                sucstep = 0
+                                
+                                if len(ion_time) <= 2 :#flagが無いときはパスする
+                                    pass
+
+                                if  len(ion_time) >= 3 and ion_time[2] - ion_time[1] <= 10 and len(flag) >= 2:#flagの値調整
+                                    
+                                    while True:
+                                        if boo[1] == 1 and boo[2] == 2:
+                                            flag[1] = 1
+                                            break
+                                            
+
+                                        elif boo[1] == 2 and boo[2] == 1:
+                                            flag[1] = 2
+                                            break
+                                            
+
+                                        elif boo[1] == 1 and boo[2] == 1:
+                                            flag[1] = 3
+                                            break
+                                            
+
+                                        elif boo[1] == 2 and boo[2] == 2:#2つ成功がヘラルドで分かった場合はflag毎取り除く
+                                            flag = np.delete(flag, 1)
+                                            del flag_num[1]
+                                            del pile_step[1]#gensprakのご教授
+                                            del boo[1]
+                                            del boo[1]
+                                            del ion_time[1]
+                                            del ion_time[1]
+                                                                                        
+
+
+
+
+                        else:
+                            pass 
+
+                        if sucstep2 == 1:#sucstepの調整これで,suconが上手くいく
+                            suc = 1
+                            sucstep2 = 0
+
+                        if sucstep3 == 1:#sucstepの調整これで、suconが上手くいく
+                            sucstep = 1
+                            sucstep3 = 0    
+
+                        if sucstep >= 1 and suc == 2: #sucの調整。イオンの調整はbomで行う
+                            sucstep += 1    
+                            if sucstep == 12 and not all_complete:#sucste == 12にしないと上手くsucが消えない.
+                                suc = 1
+                                sucstep = 0
+                                print("お前だ")
+
+                            elif flag_suc == 1:
+                                sucstep = 0
+                                suc = 1    
+
+
+                        if all_complete and suc == 1:#両方のみが1回、成功した時
+                            print(f"1回目両方完了{suc},ion{ion},onside_sucnum{onside_sucnum}")#whileで+1してるからion-1をやらなくて良い
+                            photon_num.append(ion)
+                            suc_compare_step.append(step)
+                            ion_time.append(step)
+                            boo.append(2)
+                            break 
+
+                         #片方だけ成功した時の処理 : 下に影響してくるので先に考える
+                        elif segments[0].one_load == True:#単純に片方のローディングが成功した時のイオン増加を記録 
+                            ion_time.append(step)
+                            boo.append(1)
+                            ion += 1
+                            if len(ion_time) >= 4:#3つ目のイオンが出来たときのonsideの挙動
+                                if ion_time[-1] - ion_time[-2] > 10 and len(ion_time) == 4 : #onsideは片方のみを処理する物、ion>=3はflagで処理出来るので、不用意なonside_sucnumは導入しない
+                                    onside_sucnum += 1
+
+                                elif ion_time[-1] - ion_time[-2] <= 10 and len(ion_time) == 4 :#ヘラルドの仲間入りパターン多分無くても良いかも
+                                    pass
+
+                                elif ion_time[-1] - ion_time[-2] <= 10 and len(ion_time) >= 5 and onside_sucnum == 1:#最後の2つが独立して2つのペアを作った
+                                    onside_sucnum += 1
+
+                                elif ion_time[-1] - ion_time[-2] > 10 and len(ion_time) >= 5 and onside_sucnum == 0:#最後の一つ以外はヘラルドに
+                                    onside_sucnum += 1   
+
+                                elif ion_time[-1] - ion_time[-2] <= 10 and len(ion_time) >= 5 and onside_sucnum == 0:#全てヘラルドに取り込まれた
+                                    pass
+
+                                #それ以外もpass随時更新
+
+
+                                
+    
+
+                            else:
+                                onside_sucnum += 1
+
+                            segments[0].one_load = False
+                            # onside_sucstep.append(step) 
+                            print(f"1回目片方のみ完了{suc},ion{ion-1},onside_sucnum{onside_sucnum}")
+                            
+
+                        elif all_complete and suc == 2:
+                            ion_time.append(step)
+                            boo.append(2)
+                        
+                           
+
+
+                        
+                    
+                        if np.any(flag >= 1):#100us待つ為の関数として使うと良い
+                            #print("入ってる？")
+                            for i in range(len(flag)):  #len(flag)は値の増減の影響を受けない  #ローディングスワップが帰ってくるまでに待つ時間
+                                
+
+                                if i != 0 and len(second_atem) >= 2 and second_atem[1] == i:
+                                    remain_num[i] += 1
+                                    print(f"remain_num{remain_num[i]}")
+                                        
+                                elif i != 0 and len(flag_num) >= 2:#ifにするとremainのタームと一緒にflagを計算するからズレる
+
+                                    if len(second_atem) >= 2 and i < second_atem[1]:  
+                                        flag_num[i] += 1 
+                                        print(f"hi :: step2:{step2},onside{onside_sucnum},sucstep{sucstep},suc{suc}")
+                                        print(f"flag_num{flag_num[i]}")
+
+                                    elif len(second_atem) >= 2 and i > second_atem[1]:
+                                        flag_num[i-second_atem[1]] += 1
+                                        print(f"hi :: step2:{step2},onside{onside_sucnum},sucstep{sucstep},suc{suc}")
+                                        print(f"flag_num{flag_num[i-second_atem[1]]}")
+
+                                    else:
+                                        flag_num[i] += 1
+                                        print(f"hi :: step2:{step2},onside{onside_sucnum},sucstep{sucstep},suc{suc}")
+                                        print(f"flag_num{flag_num[i]}")
+
+                                                
+                                    if flag_num[i] == 101:#デバック用
+                                        print(f"積み上げはいくつ？{pile_step[i]}")
+                                        print(f"bobcount{bob2_count}")
+                                        print("101突破")
+                                        flag.append(1)#これに入ったらまずい
+                                        
+                                    #print("ヘラルディング信号")  
+
+                                         
+
+
+
+
+                                # if len(suc_compare_step)>= 2 and len(suc_compare_step) == 2:#sucの調整
+                                #     if step - suc_compare_step[1] > 10 and not flag_suc:#Distilationが成功ルートに入ると、suc関係なくなるから
+                                #         suc = 1 #1つの成功であったのが1つの成功になる。10us以内に2つ目のsucができなかったら、出来ていないも同然だから1にして大丈夫
+                                #         del suc_compare_step[1] #suc_compare_stepはsuc==1の時しか増えないから大丈夫    
+
+                                
+                                #-----ヘラルドが帰ってきたときの処理を始める際のシグナルとしてflagを使う------
+                                
+                                if  len(second_atem) >= 2 and second_atem[1] == i and remain_num[1] == remain[1]+1 :#攻めの1。本当はremain_num[i] == remain[i]にしたいが、デバックのために,また、remain[1]+1にした理由としては、bomからのflagの性質を引き継ぐため
+                                    remove = i
+                                    remove_f = i
+                                    #send = 0
+                                    send = 1 #secondを消すためのマーク
+                                    # del second_atem[1] 
+                                    # del remain_num[1]
+                                    # del remain[1]
+
+                                elif len(second_atem) >= 2 and second_atem[1] == i and remain_num[1] != remain[1]+1 :
+                                    if len(flag_num) >= i+1: 
+                                        print(f"kaka{flag_num[i]}")
+                                    pass
+
+                                elif len(second_atem) >= 2 and i > second_atem[1]:
+                                    print("you?")
+                                    if  len(flag_num) >= i+1: 
+                                        print(f"you!{flag_num[i]}") 
+
+                                    else:
+                                        print(f"remain{remain_num[i]}")   
+
+                                    if flag_num[i-second_atem[1]] == 100 - pile_step[i-second_atem[1]] and i != 0 :
+                                        remove = i - second_atem[1]
+                                        remove_f = i
+                                    else:
+                                        print("you!") 
+
+                                elif flag_num[i] == 100 - pile_step[i] and i != 0 :#second_atemでflag_numの効力を消す
+                                    remove = i
+                                    remove_f = i
+                                    
+                                    #del pile_step[remove]　#最後にまとめてやらないとズレる
+    
+
+                                else:
+                                    print(f"一つもはいらん{flag_num[i]}")
+                                    remove = 0 
+                                    remove_f =  0       
+
+                                #-----------------------------------------------------------------------
+
+                                       
+
+                                if remove != 0:
+                                    print(f"1だけでなく、ヘラルドの待ち時間の成功数により、2,3と増える : {remove}")
+
+                                    #bomはあとで
+                                    if flag[remove_f] == 2:#sucとoneの順番#onesucが成功した時にion-2するためのbom
+                                        if len(ion_time) > 3 :
+                                            #suc = 2が途中で成功する確率がある。これを考慮しなければならないまた、suc =0にするタイミングも！！
+                                            if ion_time[3] - ion_time[1] <= 10 :#sucは10us引き継げる性質を利用して、このion_timeやflgの概念から切り離すことが大事
+                                                bom2 = 1 #bom2で一つ目を消すまで待つ
+                                                bob2_count.append(0)
+                                                #bomが終わればflag=3にする。boo=1より
+                                                second_atem.append(1)#removeは1になるはずだから、デバックがてら1にした
+                                                remain.append(ion_time[3]-ion_time[1])
+                                                remain_num.append(0)
+                                                flag[remove_f] = -1 #これにより、sucの待機時間に変な操作が行われないようにする。
+                                                flag_num[remove] = 1000#flagと一緒にけすため1008s以上にしておく
+
+                                            else:#10us以内にこなかった場合はシンプルにbomで消す。
+                                                bom = 1
+                                                bom_count = np.append(bom_count, 0) 
+
+                                                
+                                                #2と3が10us以内にいるかどうかでも場合分けしないと行けない。10usより大きい場合はflagの数足りてるので、blimだけでいいかも。また、現在書いてある最後の条件分岐は2と3が10us以内で、4つ目が無いときという条件にする。まあ、まずはflagが本当に足りてるかの確認
+                                                if len(ion_time) >= 5 and ion_time[4] -ion_time[3] <= 10 and ion_time[3] - ion_time[2] <= 10:#3つめ4つ目がある場合で1つ目と3つ目の生成時間が10usを超えた時。これは、ion_time[3] - ion_time[2] <= 10:のときで本来つくられないflagを作るｔめの儀式
+
+                                                    blim.append(ion_time[2] - ion_time[1])
+                                                    
+                                                    while True:
+                                                        print(f"ion_time{ion_time[1]},{ion_time[2]},{ion_time[3]},{ion_time[4]}")
+                                                        print(f"flag{flag}")
+                                                        #flag.append(1)
+                                                        if boo[3] == 1 and boo[4] == 2:
+                                                            flag = np.append(flag, 1)
+                                                            flag_num.append(100-(ion_time[3]-ion_time[1]))#一つ目のsucが分かってから、3つ目が分かるまでの時間
+                                                            pile_step.append(0)
+                                                            break
+                                                            
+    
+                                                        elif boo[3] == 2 and boo[4] == 1:
+                                                            flag = np.append(flag, 2)
+                                                            flag_num.append(100-(ion_time[3]-ion_time[1]))
+                                                            pile_step.append(0)
+                                                            break
+                                                            
+    
+                                                        elif boo[3] == 1 and boo[4] == 1:
+                                                            flag = np.append(flag, 3)
+                                                            flag_num.append(100-(ion_time[3]-ion_time[1]))
+                                                            pile_step.append(0)
+                                                            break
+                                                            
+    
+                                                        elif boo[3] == 2 and boo[4] == 2:#2つ成功がヘラルドで分かった場合はflag毎取り除く
+                                                            #flag = np.delete(flag, 1) #元々ないからいらない
+                                                            #del flag_num[1] #元々ないからいらない
+                                                            del boo[1]
+                                                            del boo[1]
+                                                            del ion_time[1]
+                                                            del ion_time[1]
+
+                                                elif ion_time[3] - ion_time[2] <= 10 and len(ion_time) >= 4:
+                                                    if len(ion_time) > 4 and ion_time[4] - ion_time[3] > 10:
+                                                        bomon = 1
+                                                        blim.append(ion_time[2] - ion_time[1])
+                                                        del ion_time[1]
+                                                        del boo[1]
+                                                        # onside_sucnum -= 1 #いらないのでは？
+                                                        # oneside_step = 0
+                                                    elif len(ion_time) == 4:
+                                                        bomon = 1
+                                                        blim.append(ion_time[2] - ion_time[1])
+                                                        del ion_time[1]
+                                                        del boo[1]
+
+
+                                                    #print("onside-1しないといけないのでは")
+
+                                                else:
+                                                    blim.append(ion_time[2] - ion_time[1])
+
+
+                                                del ion_time[1]
+                                                del ion_time[1]
+            
+                                                del boo[1]
+                                                del boo[1]
+                                                
+                                                                                                         
+    
+                                                flag = np.delete(flag, 1)
+                                                if send == 0:#second後と、前で動作分ける
+                                                    flag_num[remove] = -1
+                                                    pile_step[remove] = -1#後で消す
+    
+                                                elif send == 1:
+                                                    del second_atem[1] 
+                                                    del remain_num[1]
+                                                    del remain[1]
+                                                    send = 0
+                                                
+                                                
+
+                                                suc = 1
+                                                
+
+                                                  
+                                            
+
+                                        else:#ある時間後にけすような操作
+                                            bom = 1
+                                            bom_count = np.append(bom_count, 0)
+                                            blim.append(ion_time[2] - ion_time[1])
+                                            del ion_time[1]
+                                            del ion_time[1]
+                                            del boo[1]
+                                            del boo[1]
+                                            flag = np.delete(flag, 1) #2つのみの場合なので、delで良い.また、bomの場合は、消えるのは、1番目の要素なので、1とした
+                                            suc = 1
+                                            if send == 0:#second後と、前で動作分ける
+                                                flag_num[remove] = -1
+                                                pile_step[remove] = -1#後で消す
+
+                                            elif send == 1:
+                                                del second_atem[1] 
+                                                del remain_num[1]
+                                                del remain[1]
+                                                send = 0
+                                            
+
+
+                                    elif flag[remove_f] == 1:#oneとsucの順で帰ってきた場合
+                                        print("犯人きみかな？")
+                                        if len(ion_time) > 3:
+                                            if ion_time[3] - ion_time[2] <= 10 and boo[3] == 1 :#boo=1はワンサイドboo=2は両方
+                                                remain.append(ion_time[2]-ion_time[1])
+                                                remain_num.append(0)
+                                                second_atem.append(1)#removeは1になるはずだから、デバックがてら1にした
+                                                del ion_time[1]
+                                                del boo[1]
+                                                ion -= 1
+                                                flag_num[remove] = -1#後で消す
+                                                flag[remove_f] = 2 #boo[3] == 1、つまり、ワンサイドより、suc oneの順番で光子が入る事状況の処理に、flag[remove] = 2にすることで持って行く
+                                                
+
+                                            else:
+                                                 del ion_time[1]
+                                                 del ion_time[1] #長さが3だから見られるトリック
+                                                 del boo[1]
+                                                 del boo[1]
+                                                 flag = np.delete(flag, 1)#ワンちゃん違う、確証はない
+                                                 if send == 0:#second後と、前で動作分ける
+                                                    flag_num[remove] = -1
+                                                    pile_step[remove] = -1#後で消す
+    
+                                                 elif send == 1:
+                                                     del second_atem[1] 
+                                                     del remain_num[1]
+                                                     del remain[1]
+                                                     send = 0
+
+                                                 ion -= 3 #プログラム上、両方を消すときは、-2で考える
+                                                 suc = 0
+                                                 breakmark = 1
+                                                            
+
+                                        else:
+                                            del ion_time[1]
+                                            del ion_time[1] #長さが3だから見られるトリック
+                                            del boo[1]
+                                            del boo[1]
+                                            flag = np.delete(flag, 1)#ワンちゃん違う、確証はない
+                                            if send == 0:#second後と、前で動作分ける
+                                                flag_num[remove] = -1
+                                                pile_step[remove] = -1#後で消す
+
+                                            elif send == 1:
+                                                del second_atem[1] 
+                                                del remain_num[1]
+                                                del remain[1]
+                                                send = 0
+                                            ion -= 3
+                                            suc = 0
+                                            breakmark = 1
+                                            
+
+
+                                    elif flag[remove_f] == 3:#oneとoneが10us以内に出来たときの処理
+                                        if len(ion_time) > 3:
+                                            if ion_time[3] - ion_time[2] <= 10 and boo[3] == 1 :#boo=1はワンサイドboo=2は両方
+                                                remain.append(ion_time[3]-ion_time[2])
+                                                remain_num.append(0)
+                                                second_atem.append(1)#removeは1になるはずだから、デバックがてら1にした
+                                                del ion_time[1]
+                                                del boo[1]
+                                                print("ion減らせてます")
+                                                if send == 0:#second後と、前で動作分ける
+                                                    flag_num[remove] = -1
+    
+                                                elif send == 1:
+                                                    del second_atem[1] 
+                                                    del remain_num[1]
+                                                    del remain[1]
+                                                    send = 0
+                                                ion -= 1
+                                                flag[remove_f] = 3 #boo[3] == 1、つまり、ワンサイドより、suc oneの順番で光子が入る事状況の処理に、flag[remove] = 2にすることで持って行く
+                                            
+                                            elif ion_time[3] - ion_time[2] <= 10 and boo[3] == 2 :
+                                                remain.append(ion_time[3]-ion_time[2])
+                                                remain_num.append(0)
+                                                second_atem.append(1)#removeは1になるはずだから、デバックがてら1にした
+                                                del ion_time[1]
+                                                del boo[1]
+                                                ion -= 1
+                                                flag[remove_f] = 2  
+                                                
+                                                if send == 0:#second後と、前で動作分ける
+                                                    flag_num[remove] = -1
+    
+                                                elif send == 1:
+                                                    del second_atem[1] 
+                                                    del remain_num[1]
+                                                    del remain[1]
+                                                    send = 0
+
+                                                print("ononsuc")
+
+                                              
+
+
+
+                                            else:#oneとoneのみの場合
+                                                 del ion_time[1]
+                                                 del ion_time[1] #長さが3だから見られるトリック
+                                                 ion -= 2 #プログラム上、両方を消すときは、-2で考える
+                                                 del boo[1]
+                                                 del boo[1]
+                                                 flag = np.delete(flag, 1) 
+
+                                                 if send == 0:#second後と、前で動作分ける
+                                                    flag_num[remove] = -1
+    
+                                                 elif send == 1:
+                                                    del second_atem[1] 
+                                                    del remain_num[1]
+                                                    del remain[1]
+                                                    send = 0
+
+                                                 
+                                                 print("onon")
+
+                                        else:#oneとoneのみの場合
+                                            del ion_time[1]
+                                            del ion_time[1] #長さが3だから見られるトリック
+                                            ion -= 2
+                                            del boo[1]
+                                            del boo[1]
+                                            flag = np.delete(flag, 1)
+
+                                            if send == 0:#second後と、前で動作分ける
+                                                flag_num[remove] = -1
+
+                                            elif send == 1:
+                                                del second_atem[1] 
+                                                del remain_num[1]
+                                                del remain[1]
+                                                send = 0
+
+                                    elif flag[remove_f] == -1:#bomを待っている間
+                                        pass #bomのwaitingtime
+                                    
+
+                            
+                                 
+                                        
+                            for i in range(len(flag_num) - 1, -1, -1):
+                                if flag_num[i] == -1:
+                                    del flag_num[i]
+                                    del pile_step[i]            
+
+
+                                               
+
+                                                   
+                        if bom == 1 :
+                            print("bom!!!")
+                            
+                            for i in range(len(bom_count)):
+                                if i != 0:
+                                    bom_count[i] += 1
+
+                                #bom_countの値変えて、flag_numも整理。iに沿って行う
+
+                                if bomon == 1:#suc on1 on2でon1が分かった時にはsucもon2も消える事を表す。
+                                    if bom_count[i] == blim[i]:
+                                        ion -= 4
+                                        breakmark = 1
+                                        bom =0
+                                        bom_count[i] = -1
+                                        suc = 0
+                                        sucstep = 0
+                                        bomon = 0
+                                        blim[i] = -1 #あとで、降順でまとめて消す
+
+
+                                    
+                                    # del ion_time[1] #bomの時は、いらないのでは？イオンの操作だけで十分
+                                    # del ion_time[1]
+                                    # del boo[1]
+                                    # del boo[1]
+
+                                    
+
+                                elif bomon == 0:#suc on ? ?　でonが分かっても、その後の操作はflgaに任せる
+                                    #if np.any(bom_count[i] == blim[i]):
+                                    if bom_count[i] == blim[i]:    
+                                        ion -= 3
+                                        breakmark = 1
+                                        bom =0
+                                        bom_count[i] = -1
+                                        suc = 0
+                                        sucstep = 0
+                                        #bomon = 0
+                                        blim[i] = -1 #あとで、降順でまとめて消す
+                                        
+
+                            
+                            for i in range(len(blim) - 1, -1, -1):
+                                    if blim[i] == -1:
+                                        del blim[i]
+                                    if bom_count[i] == -1:    
+                                        bom_count = np.delete(bom_count, i)
+                                           
+
+                            
+                
+
+                        elif bom2 == 1:# suc one one の場合の挙動。suc one one one suc にも対応させたい
+                            print("bom2!!!")
+
+                            for i in range(len(bob2_count)):
+                                # if i % 2 != 0: #普通にiでやればいいのではワンちゃん違う
+                                #     bob2_count[i] += 1
+                                if i != 0:
+                                    bob2_count[i] += 1
+
+                            if bob2_count[1] >10 :#デバック要員
+                                print(f"ion{ion_time},bob2_count{bob2_count}")  
+                                flag.append(1)      
+
+                            if ion_time[2] - ion_time[1] <= 10:#そもそも10us圏内になければ待つこともしない3つ目がなければ強制的に消すから大丈夫。そうでないとbob2発動しないが、念のため
+
+
+                                if bob2_count[1] >= ion_time[2] - ion_time[1] :#そもそも、1つめと2つ目の間が10usにならないと行けない。正直いらないかも知れないがあって損しない
+                                    if len(ion_time) >= 4 and bob2_count[1] <= 10 and ion_time[1+2] - ion_time[1] <= 10 and boo[2] == 1:#3つ目があるとき
+                                        del ion_time[1+1]
+                                        del boo[1+1]
+                                        ion -= 1
+                                        
+                                    elif bob2_count[1] <= 10 and boo[2] == 1:
+                                        if len(ion_time) < 4 or ion_time[1+2] - ion_time[1] > 10 :#3つめが無いときもしくは、sucとの距離が離れているとき
+                                            del ion_time[1]
+                                            del ion_time[1]
+                                            del boo[1]
+                                            del boo[1]
+                                            bom2 = 0
+                                            del bob2_count[1]
+                                            del flag_num[1]
+                                            del pile_step[1]#gensprakのご教授
+                                            flag = np.delete(flag, 1)
+                                            ion -= 3
+                                            breakmark = 1
+                                            suc = 0 #suc=0にして、2つしかない事をいう
+                                            sucstep = 0
+                                            
+
+                                            
+
+                                            if len(ion_time) <= 2 :#flagが無いときはパスする
+                                                pass
+
+                                            if  len(ion_time) >= 3 and ion_time[2] - ion_time[1] <= 10 and len(flag) >= 2:#flagの値調整
+                                                
+                                                while True:
+                                                    if boo[1] == 1 and boo[2] == 2:
+                                                        flag[1] = 1
+                                                        break
+                                                        
+
+                                                    elif boo[1] == 2 and boo[2] == 1:
+                                                        flag[1] = 2
+                                                        break
+                                                        
+
+                                                    elif boo[1] == 1 and boo[2] == 1:
+                                                        flag[1] = 3
+                                                        break
+                                                        
+
+                                                    elif boo[1] == 2 and boo[2] == 2:#2つ成功がヘラルドで分かった場合はflag毎取り除く
+                                                        flag = np.delete(flag, 1)
+                                                        del flag_num[1]
+                                                        del pile_step[1]#gensprakのご教授
+                                                        del boo[1]
+                                                        del boo[1]
+                                                        del ion_time[1]
+                                                        del ion_time[1]
+                                                        
+
+                                    elif boo[1] == 2 and boo[2] == 2 and bob2_count[1] <= 10:#10usの場合のみという制約をつける
+                                        flag = np.delete(flag, 1)
+                                        del flag_num[1]
+                                        del pile_step[1]#gensprakのご教授
+                                        del boo[1]
+                                        del boo[1]
+                                        del ion_time[1]
+                                        del ion_time[1]
+
+                                        
+
+                                        del bob2_count[1]
+
+                                        bom2 = 0
+
+                                        if len(ion_time) >= 3 and ion_time[2] - ion_time[1] <= 10 and len(flag) >= 2:
+
+                                            while True:
+                                                        if boo[1] == 1 and boo[2] == 2:
+                                                            flag[1] = 1
+                                                            break
+                                                            
+
+                                                        elif boo[1] == 2 and boo[2] == 1:
+                                                            flag[1] = 2
+                                                            break
+                                                            
+
+                                                        elif boo[1] == 1 and boo[2] == 1:
+                                                            flag[1] = 3
+                                                            break
+                                                            
+
+                                                        elif boo[1] == 2 and boo[2] == 2:#これもflagの種類として、flag関数に入れても良いかも
+                                                            flag = np.delete(flag, 1)
+                                                            del flag_num[1]
+                                                            del pile_step[1]#gensprakのご教授
+                                                            del boo[1]
+                                                            del boo[1]
+                                                            del ion_time[1]
+                                                            del ion_time[1]
+                                                            
+
+                                                  
+
+                            else:#flagを前提としているのでここにくることはない
+                                print("something wrong")
+                                flag.append(1)#エラーがでる。デバック用
+
+                               
+                                
+                            if len(flag) >= 2:#余剰flagの削除
+                                        for i in range(len(flag_num)):
+                                            
+                                            if i != 0 and i % 2 != 0:#左を基準にするから、i%2としてかまわない、また、ionの組が、2/1/2になることはあり得ないのでi%2と出来る
+                                                
+                                                if len(ion_time) >= i + 2 :
+                                                    df += 1
+                                                    if  ion_time[i+1] - ion_time[i] > 10 :
+                                                        print(f"i{i}")
+                                                        if len(flag) >= df and len(ion_time) <= i+2:#len(ion_time)<=i+2をすることで、4と2のセットから、4の部分が一つ消えた場合を考慮出来る
+                                                            flag = np.delete(flag, df + 1)
+                                                            del flag_num[df + 1] #もとのflag関数で消している
+                                                            del pile_step[df + 1]
+
+
+
+                                        df = 0       
+
+
+                                    
+
+                        if breakmark == 1:
+                            breakmark = 0
+                            print("boooom!!")
+                            break                    
+
+                                    
+
+
+
+
+                                            
+
+
+
+                                    
+
+                        if flag_suc == 1: #成功したDistillationが届くまでの時間
+                            flag_sucnum += 1
+                            print(f"成功した後のion{ion}")
+                            if flag_sucnum == 100:
+                                ion -= 1
+                                photon_num.append(ion)#ディスティレーションによって、一個消費する。
+                                ion_num.append(np.mean(photon_num))
+                                ion_max.append(np.max(photon_num))
+                                #photon_num= np.array(photon_num)
+                                photon_num.clear()
+                                break        
+
+
+                        
+                        #両方のイオンが成功してから、もう一つの両方のイオンが出るまでの待機時間。片方イオンが出来たら、100us待つようにしないといけない。 
+                        if suc == 2 and not all_complete:
+                            step2 += 1 #これも配列にして処理しないと追えないかも
+                            #print("suc2さんあなたが犯人です")
+                            print(f"hey :: step2:{step2},onside{onside_sucnum},sucstep{sucstep}")
+                            
+
+                            #両方が一組しか成功していないときの待ち時間のリミット
+                            if step2 == 11 and onside_sucnum == 0 and sucstep == 0: #10+1と言う意味,onside_sucnum == 0で一つしか成功していないことを強調。また、sucstepより、ヘラルド待ちのsucが消えるのをsuc=1になるまで待つことによって防ぐ
+                                print(f"10us過ぎた時{suc}")
                                 step2 = 0
-                                suc = 0 
+                                suc = 0
+                                ion -= 2 #意味的には-1で良いと思うかも知れないが、プログラム的に-2にしないといけない。 
+                                photon_num.append(ion)
+                                del suc_compare_step[1]
+                                del ion_time[-1]
+                                del boo[-1]#10us前後にないときは、一番後ろにいるということ！
+
+
+                                
+
 
                                 break
 
 
-                        if all_complete and suc == 1:
-                            #print(f"1回目完了{suc}")
-                            break    
+                            #この後3つ目が来ても、flag関数で調整し、対応出来る様になってる
+                            elif step2 <= 11 and onside_sucnum == 1 and sucstep == 0:#このコードを通る時は、sucが少なくとも、一つ成功した時に10us前後に片方のイオンが成功した時。sucstep==0の条件を入れないと、suc2 not all_compleateに入ってしまい、suconが新たに来たと勘違いして、flagを作ってしまうので、注意
+                                
+                                print("suconのエラー")
+                                oneside_step = 0 #物理特性上、恐らくこれを入れて、oneを調整するのありかも。厳密とはいえないのかな？
+                                
+                                #if suc_compare_step[-1] < onside_sucstep[-1] :#この配列であってるのかな？笑
+                                if  suc_compare_step[1] == ion_time[-1]:#仮　これで行ける説    
+                                    flag = np.append(flag, 1)  #1のappendで良いが、onsideが先行した場合は調整が必要。これも、3,4,5で変わってくる。
+                                    pile_step.append(step2) #sucができてからの時間がstep2である。
+                                    sucstep = 11 - step2
+                                    step2 = 0
+                                    if sucstep == 0:
+                                        sucstep2 = 1
+                                    del suc_compare_step[1]    
+                                    #if sucstep == 0:suc = 1を次のステップで
+                                else:
+                                    flag = np.append(flag, 2) 
+                                    pile_step.append(ion_time[-1] - ion_time[-2])#仮 これで行ける説
+                                    del suc_compare_step[1]
+                                    #pile_step.append(suc_compare_step[-1] - onside_sucstep[-1])#oneができてから、sucが出来るまでのステップ 
+                                    #print(f"suc{suc_compare_step[1]}-onside{onside_sucstep[1]}=pile{pile_step}")
+                                    
+                                    sucstep3 = 1#markで次のステップでsucstep+=1にしたい
+                                    step2 = 0
+                                    
+                                onside_sucnum -= 1 #3つめ4つめ~10個目ときたときの対応が出来ない     
+                                flag_num.append(0)
+                                # del suc_compare_step[1]#これで、flagがズレる可能性あり
+                                # del onside_sucstep[1]
+                                # photon_num.append(ion-1)#sucはionが一つ多いとしてみている。
+                                # break #ここでbreakするとsucが3になって狂う
+                            
+
+
+                
+                                
+
+
+                        
+                        #-------ここからが、片方でイオンを数えるときの肝-------
+
+                       
+                            
+
+                        #片方でかつ1つしか成功していない時のカウントダウン
+                        if onside_sucnum >= 1  and suc == 1 and not all_complete:#suc and not all_completeにより、両方成功はない事を表す。 :
+                            if onside_sucnum < 3:
+                                oneside_step += 1
+                                print(f"ion{ion_time}だお")
+
+                            if oneside_step == 11 and onside_sucnum == 1:
+                                ion -= 1
+                                onside_sucnum -= 1
+                                oneside_step = 0
+                                
+                                if len(ion_time) >= 4:
+                                    del ion_time[-1]
+                                    del boo[-1]
+
+                                else:
+                                    del ion_time[1]
+                                    del boo[1]
+
+                                print(f"ion{ion_time}")    
+                                    
+                                # del onside_sucstep[1]
+
+                            
+                            #前後10usに光子の保存がなければ、100のカウントダウンに入れてイオンで処理しよう
+                            #片方で2つ成功した際のヘラルドカウントダウン　これも問答無用でイオンを2つ減らすまでのカウントダウンの共通関数で処理するべき
+                            elif onside_sucnum == 2 and oneside_step <= 11:
+                                #suc = 0
+                                print("犯人こいつ説")
+                                onside_sucnum -= 2
+                                
+                                pile_step.append(oneside_step)
+                                oneside_step = 0#pileで渡す前に行う
+                                flag = np.append(flag, 3) #onsideが先行した場合より、90usで消すように仕向けた。ただこれだけだと、3つめ4つめに対応出来ない。
+                                flag_num.append(0)
+                                
+                                photon_num.append(ion-1)#sucはionが一つ多いとしてみている。
+                                print(f"flag{flag[1]}")
+
+                                # del onside_sucstep[1]
+                                # del onside_sucstep[1]#ワンちゃん違う。使わないやり方,ion_time[-1]を模索した方が良いかも
+                                
+                                #oneside_step = 0 #breakはやらない方がよい
+                                #break
+                                
 
                         
 
-                        elif all_complete and suc == 2:
+
+
+                            
+
+                           
+
+                        
+                        #両方が2回成功した時
+                        if all_complete and suc == 2 and flag_suc != 1:#elif all_complete and suc == 2 and flag_suc == 1:も考える。イオンの数の調整として行うていうか、step2=11の他の分岐として数えさせるでも良いかも
                             step_rouds += step
                             t_generation = (step_rouds+1) * 0.000001#＋1はDistillationを考慮している
-                            t_latency_total =param_dict.get("t_CNOT") + param_dict.get("t_QR")
-                            print(f"step: {step}")
-                            #step[4]+=1
+                            t_latency_total =param_dict.get("t_CNOT") + param_dict.get("t_QR") + 0.0001
+                            print(f"step{step}")
                           
                             t_elapsed = t_generation + t_latency_total #* total_golobal_count
-                        # print(total_golobal_count) # Removed excessive print
+                            # print(total_golobal_count) # Removed excessive print
 
 
 
@@ -1862,18 +2846,30 @@ def main_loop():
                             p = Disproba
 
                             if check_success(Disproba):#F_listを定義してからでないと行けない
-                                #print(f"成功")
-                                Fidelity_for_histgram_Hop.append(Distilation_caluculation_single_photon(mode="normal"))#Hop by Hopに限る                                  
+                                print(f"成功{suc}ion{ion}")
+                                Fidelity_for_histgram_Hop.append(Distilation_caluculation_single_photon(mode="normal"))#Hop by Hopに限る
+                                flag_suc = 1
+                                suc = 0
+                                
+                                photon_num.append(ion)
+                                
+
+                                                              
                                 break
                             
-                            else:
+                            else:#Dis失敗の場合
                                 fail[0] +=1
                                 fail[1] += 1
                                 segments = [RepeaterSegment(i, sim_params["n_ELs"]) for i in range(sim_params["num_segments"]) ] #セグメントの初期化
                                 step = 0
-                                #print(f"失敗{fail}回目")
+                                print(f"失敗{fail}回目")
+                                flag.append(1)
+                                flag_num.append(0)
                                 
-
+                        
+                        photon_num.append(ion-1) #何も光子がこなかったとき、関数の性質上個々に置く
+                        if flag_suc ==1:
+                            print(f"ここまで来てる？{flag_sucnum}")
                            
 
 
@@ -1883,7 +2879,7 @@ def main_loop():
                        
 
                     # # 進捗表示 (10%ごと)
-                    #     if (attempt + 1) % (attempts // 10 + 1) == 0:
+                    #     if (attempt + 1) % (attempts // 10 + 1) == 0:#10で割り切れる時に出てくる消しても支障ない
                     #         print(".", end="")
 
 
@@ -1996,6 +2992,11 @@ def main_loop():
 
           histgram(execution_times,Fidelity_for_histgram_Hop,attempts)
           #heatmap_analysis(execution_times, Fidelity_for_histgram_Hop, attempts)
+
+          print(f"イオンの平均使用数{np.mean(ion_num)},イオンの最大使用数{np.max(ion_max)}")
+
+          pychart(ion_max)
+          print(f"ion{ion_max}")
 
 
 

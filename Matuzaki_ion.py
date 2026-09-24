@@ -1698,6 +1698,8 @@ def main_loop():
           sel=int(input('Enter the architecher 1:2bell 2:4bell ')) #the basis of the 4bell swap but now I consider only 2bell case
           suc = 0
           step2 = 0
+          max_ion = int(input('max ion number (Enter number, e.g., 100): '))
+          
           if sel == 1:
               memcount = 10
               bell_num = 2
@@ -1779,6 +1781,11 @@ def main_loop():
                   fail.append(0)
                   forth =0
                   suc = 0
+                  ion = 0
+                  delmark = 0
+                  kimmark = 0
+
+                  red_count = [] 
                   #print("debug")
                   if Sndmethod_choice =="A":
                     F_list_eachattempt = []#仮として、Fの原型を残している。ELを増やすときはここを改造,しっかりstepとの関係を考える
@@ -1801,10 +1808,70 @@ def main_loop():
                       suc +=1  
                       segments = [RepeaterSegment(i, sim_params["n_ELs"]) for i in range(sim_params["num_segments"]) ] #セグメントの初期化
                       while True:
-                         
-                        all_complete = run_simulation(segments, sim_params,method_choice,e,memcount)
-                        step += 1
-                    #print("デバッグ")
+                        
+                        if ion < max_ion:#<=にしてはいけない
+                             all_complete = run_simulation(segments, sim_params,method_choice,e,memcount)
+                             step += 1
+                        else:
+                             #segments = [RepeaterSegment(i, sim_params["n_ELs"]) for i in range(sim_params["num_segments"]) ] #セグメントの初期化
+                             segments[0].el_states[0] = False
+                             all_complete = False
+                             #print("この時間あるか？")    
+                             step += 1
+                       
+                        # all_complete = run_simulation(segments, sim_params,method_choice,e,memcount)
+                        # step += 1
+                           
+
+
+                        
+                        if len(red_count) >= 1:
+                            for i in range(len(red_count)):
+                                #print(f"{i}番目のred_count{red_count}")
+                                red_count[i] += 1
+                                if red_count[i] == 101:
+                                    delmark = 1
+                                
+                                if red_count[i] == 10:#10usの寿命設定
+                                    #print("はいってる？")
+                                    if len(red_count) >= 2:
+                                        if red_count[i-1] - red_count[i] >= 10:
+                                            #print("君犯人？")
+                                            if len(red_count) >= (i+1)+1:#(i+1)で現在の数、それに加えて１こ多いかを見ている。
+                                                if red_count[i] - red_count[i+1] >= 10:    
+                                                    delmark = 1
+                                                    #print("犯人は君だ")
+                                                else:#10us以内にRedが存在する。
+                                                    pass
+                                                    #print("意味分からん")
+                                            else:#これより上ないなら消す
+                                                #print("なんで？")
+                                                kimmark = 2        
+                                        else:#１個前のイオンとの差が10us以内である場合
+                                            pass
+
+                                    elif len(red_count) == 1:#1個しかない場合は、問答無用で削除
+                                        delmark = 1  
+
+                           
+
+                        if segments[0].el_states[0] == True and ion < max_ion:#redの数の増減
+                            ion += 1
+                            #print("El考慮ある?")
+                            red_count.append(0)
+
+                        if delmark == 1:
+                            del red_count[0]
+                            ion -= 1
+                            delmark = 0     
+                        if kimmark == 2:
+                            del red_count[-1]
+                            ion -= 1
+                            kimmark = 0    
+
+
+
+                  
                         if suc == 2:
                             step2 += 1
                             if step2 == 11:#10+1と言う意味
@@ -1816,17 +1883,21 @@ def main_loop():
 
 
                         if all_complete and suc == 1:
-                            #print(f"1回目完了{suc}")
-                            break    
+                            if ion <= max_ion:
+                                #print(f"1回目完了{suc}")
+                                break
+                            else:
+                                suc = 0
+                                print(f"1回目完了したが、イオン数が多すぎる{suc}")
+                                break    
 
-                        
 
-                        elif all_complete and suc == 2:
+                        elif all_complete and suc == 2 and ion <= max_ion:
                             step_rouds += step
                             t_generation = (step_rouds+1) * 0.000001#＋1はDistillationを考慮している
                             t_latency_total =param_dict.get("t_CNOT") + param_dict.get("t_QR")
                             print(f"step: {step}")
-                            #step[4]+=1
+                            #step[4]+=1#debug
                           
                             t_elapsed = t_generation + t_latency_total #* total_golobal_count
                         # print(total_golobal_count) # Removed excessive print
