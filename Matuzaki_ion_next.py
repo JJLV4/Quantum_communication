@@ -1835,6 +1835,7 @@ def main_loop():
                   ion = 0
                   delmark = 0
                   kimmark = 0
+                  photon_num = []
 
                   red_count = [] 
                   #print("debug")
@@ -1920,8 +1921,8 @@ def main_loop():
                             ion -= 1
                             kimmark = 0    
 
-
-                        ion_num.append(ion)    
+                        photon_num.append(ion)
+                          
 
 
                         if suc == 2:
@@ -1949,7 +1950,8 @@ def main_loop():
                             t_generation = (step_rouds+1) * 0.000001#＋1はDistillationを考慮している
                             t_latency_total =param_dict.get("t_CNOT") + param_dict.get("t_QR")
                             print(f"step: {step}")
-                            ion_max.append(max(ion_num))
+                            ion_num.append(photon_num)  
+                            ion_max.append(max(photon_num))
                             #step[4]+=1#debug
                           
                             t_elapsed = t_generation + t_latency_total #* total_golobal_count
@@ -2016,7 +2018,7 @@ def main_loop():
 
               np.save("Distillation_suc_probability.npy",np.mean(save_Dispro))    
               np.save("Before_Distillation.npy",np.mean(time_before_distillation))
-              pychart(ion_max)
+              
               
 
         
@@ -2118,6 +2120,10 @@ def main_loop():
 
           # 最後にグラフを表示！
           plt.show()
+
+          pychart(ion_max)
+          
+          print(f"最大イオン数{np.max(ion_max)}")
 
           histgram(execution_times,Fidelity_for_histgram_Hop,attempts)
           #heatmap_analysis(execution_times, Fidelity_for_histgram_Hop, attempts)
