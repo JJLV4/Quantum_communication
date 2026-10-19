@@ -1947,7 +1947,18 @@ def main_loop():
                                 #print("この時間あるか？")    
                                 step += 1
 
-                        
+                        if len(ion_time) == 4: #応急処置厳密ではない
+                            if  ion_time[2]-ion_time[1] > 10:
+                                del ion_time[1]
+                                del ion_time[1]
+                                del ion_time[1]
+                                del boo[1]
+                                del boo[1]
+                                del boo[1]
+                                suc = 0
+                                ion = 0
+                                onside_sucnum = 0
+                                break
 
                         #最初に置くことでバグらないようにする。
                         if len(boo) >= 3 and  boo[1] == 2 and boo[2] == 2 and ion_time[2] - ion_time[1] <= 10:#suc=2の時の処理、ion_timeに残しておくと、flagの処理でバグる

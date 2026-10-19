@@ -345,7 +345,7 @@ def main_loop():
     #relative_path = "Desktop\研究データ\simulation_database.npy"　#忠実な値100usのモンテカルロ
     #relative_path = "Desktop\研究データ\simulation_database_prob100%.npy" #95%確認用
     #relative_path = "Desktop\研究データ\simulation_database_takahasi_compare_ver.npy"#高橋先生最大値で妥当性を確認用
-    relative_path = "Desktop\研究データ\simulation_database_takahasi_normal.npy"
+    relative_path = "C:\\Users\\joe10\\code\\simulation_database_LQUOM_1us_samecon_takahasi.npy"
     full_path = os.path.join(home, relative_path)
 
     try:

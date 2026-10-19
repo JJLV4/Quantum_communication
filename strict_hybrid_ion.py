@@ -1883,7 +1883,7 @@ def main_loop():
                                 if red_count[i] == 101:
                                     delmark = 1
                                 
-                                if red_count[i] == 10:#10usの寿命設定,one,sucでも対応出来る様に変形した。
+                                if red_count[i] >= 10:#10usの寿命設定,one,sucでも対応出来る様に変形した。
                                     #print("はいってる？")
                                     if len(red_count) >= 2:
                                         if red_count[i-1] - red_count[i] >= 10:
@@ -1950,7 +1950,7 @@ def main_loop():
                             t_generation = (step_rouds+1) * 0.000001#＋1はDistillationを考慮している
                             t_latency_total =param_dict.get("t_CNOT") + param_dict.get("t_QR")
                             print(f"step: {step}")
-                            ion_num.append(photon_num)  
+                            #ion_num.append(photon_num)  
                             ion_max.append(max(photon_num))
                             #step[4]+=1#debug
                           
