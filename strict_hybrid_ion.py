@@ -1531,8 +1531,8 @@ def histgram(a,b,attempts):
     ax.set_title('3D Histogram of Simulation Results')
 
     plt.savefig('3d_histogram.png') # 画像として保存
-    np.save('simulation_database_LQUOM_1us_samecon_takahasi.npy', database_segment) 
-    print("Database saved as 'simulation_database_LQUOM_1us_samecon_takahasi.npy'")
+    np.save('simulation_database_LQUOM_1us_samecon_takahasi_ionlimit_strict.npy', database_segment) 
+    print("Database saved as 'simulation_database_LQUOM_1us_samecon_takahasi_ionlimit_strict.npy'")
     print(database_segment[0])
     print(database_segment[1])
     del database_segment

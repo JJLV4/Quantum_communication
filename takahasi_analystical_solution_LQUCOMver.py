@@ -288,6 +288,7 @@ def main():
             #     raise NotImplementedError
 
             tau_arc = 2110 * 0.000001
+            #tau_arc = 1210*0.000001 #こちらにして、LQUOMと条件を合わせるべき
 
 
             return tau_arc, ttrans

@@ -1561,8 +1561,8 @@ def histgram(a,b,attempts):
     ax.set_title('3D Histogram of Simulation Results')
 
     plt.savefig('3d_histogram.png') # 画像として保存
-    np.save('simulation_database.npy', database_segment) 
-    print("Database saved as 'simulation_database.npy'")
+    np.save('simulation_database_takahasiver_CNOT10.npy', database_segment) 
+    print("Database saved as 'simulation_database_takahasiver_CNOT10.npy'")
     del database_segment
 
 
@@ -1838,7 +1838,8 @@ def main_loop():
                         all_complete,N_suc = run_simulation(segments, sim_params,method_choice,e,int(N_multi))
                         if segments[0].RP: 
                             print("ローディング")
-                            step += N_suc*200
+                            #step += N_suc*200
+                            step += (int(N_multi)+110)#LQUOMに合わせるならこっちにするべき
 
                         elif not segments[0].RP:
                             print("EL")
