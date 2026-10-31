@@ -633,7 +633,7 @@ def load_params_dict(arch, arc_method, param_set=None):
         ##### Load presets from excel files
         if arch == "askarani":
            #df_data = pandas.read_excel(r'/content/drive/MyDrive/temp/Parameters_askarani.xlsx') Colab用
-            df_data = pandas.read_excel(r"C:\Users\joe10\OneDrive\temp\Parameters_askarani.xlsx")
+            df_data = pandas.read_excel(r"/mnt/c/Users/joe10/OneDrive/temp/Parameters_askarani.xlsx")
 
             if param_set == 1:
                 column_key = "askarani near term"
@@ -650,7 +650,7 @@ def load_params_dict(arch, arc_method, param_set=None):
             "dictkeysはdf_data[column_key].to_list()の値と変数の名前を対応関係にするための準備"
         elif arch == "ca":
             #df_data = pandas.read_excel(r'/content/drive/MyDrive/temp/Parameters_ca_trap.xlsx')#colab用
-            df_data = pandas.read_excel(r"C:\Users\joe10\OneDrive\temp\Parameters_ca_trap.xlsx")
+            df_data = pandas.read_excel(r"/mnt/c/Users/joe10/OneDrive/temp/Parameters_ca_trap.xlsx")
             
             if param_set == 1:
                 column_key = "lquom"
@@ -1839,7 +1839,7 @@ def main_loop():
                         if segments[0].RP: 
                             print("ローディング")
                             #step += N_suc*200
-                            step += (int(N_multi)+110)#LQUOMに合わせるならこっちにするべき
+                            step +=  N_suc*110#LQUOMに合わせるならこっちにするべき
 
                         elif not segments[0].RP:
                             print("EL")

@@ -614,7 +614,7 @@ def load_params_dict(arch, arc_method, param_set=None):
         ##### Load presets from excel files
         if arch == "askarani":
            #df_data = pandas.read_excel(r'/content/drive/MyDrive/temp/Parameters_askarani.xlsx') Colab用
-            df_data = pandas.read_excel(r"C:\Users\joe10\OneDrive\temp\Parameters_askarani.xlsx")
+            df_data = pandas.read_excel(r"/mnt/c/Users/joe10/OneDrive/temp/Parameters_askarani.xlsx")
 
             if param_set == 1:
                 column_key = "askarani near term"
@@ -631,7 +631,7 @@ def load_params_dict(arch, arc_method, param_set=None):
             "dictkeysはdf_data[column_key].to_list()の値と変数の名前を対応関係にするための準備"
         elif arch == "ca":
             #df_data = pandas.read_excel(r'/content/drive/MyDrive/temp/Parameters_ca_trap.xlsx')#colab用
-            df_data = pandas.read_excel(r"C:\Users\joe10\OneDrive\temp\Parameters_ca_trap.xlsx")
+            df_data = pandas.read_excel(r"/mnt/c/Users/joe10/OneDrive/temp/Parameters_ca_trap.xlsx")
             
             if param_set == 1:
                 column_key = "lquom"
@@ -1541,8 +1541,8 @@ def histgram(a,b,attempts):
     ax.set_title('3D Histogram of Simulation Results')
 
     plt.savefig('3d_histogram.png') # 画像として保存
-    np.save('simulation_database_LQUOM_1us_samecon_takahasi.npy', database_segment) 
-    print("Database saved as 'simulation_database_LQUOM_1us_samecon_takahasi.npy'")
+    np.save('twoside_ion_strict.npy', database_segment) 
+    print("Database saved as 'twoside_ion_strict.npy'")
     print(database_segment[0])
     print(database_segment[1])
     del database_segment

@@ -1544,8 +1544,8 @@ def histgram(a,b,attempts):
     ax.set_title('3D Histogram of Simulation Results')
 
     plt.savefig('3d_histogram.png') # 画像として保存
-    np.save('simulation_database.npy', database_segment) 
-    print("Database saved as 'simulation_database.npy'")
+    np.save('simulation_database_onesuc_ver_ionlimit=3.npy', database_segment) 
+    print("Database saved as 'simulation_database_onesuc_ver_ionlimit=3.npy'")
     del database_segment
 
 
@@ -1948,13 +1948,15 @@ def main_loop():
                                 step += 1
 
                         if len(ion_time) == 4: #応急処置厳密ではない
-                            if  ion_time[2]-ion_time[1] > 10:
+                            if  ion_time[2]-ion_time[1] > 11:
+                                print(f"ion_time{ion_time}boo{boo}step{step}ion{ion}suc{suc}flag{flag}")
                                 del ion_time[1]
                                 del ion_time[1]
                                 del ion_time[1]
                                 del boo[1]
                                 del boo[1]
                                 del boo[1]
+                                
                                 suc = 0
                                 ion = 0
                                 onside_sucnum = 0
