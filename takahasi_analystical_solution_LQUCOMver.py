@@ -287,8 +287,8 @@ def main():
             # else:
             #     raise NotImplementedError
 
-            tau_arc = 2110 * 0.000001
-            #tau_arc = 1210*0.000001 #こちらにして、LQUOMと条件を合わせるべき
+            #tau_arc = 2110 * 0.000001
+            tau_arc = 1210*0.000001 #こちらにして、LQUOMと条件を合わせるべき
 
 
             return tau_arc, ttrans
@@ -495,7 +495,7 @@ def main():
         plt.xlabel(xlabel)
         plt.ylabel("Entanglement Distribution Rate")
         plt.show()
-        np.save("ydata_only.npy", ydata)
+        np.save("takahasi_ydata_samecon_LQUOM.npy", ydata)
         print("ydata を ydata_only.npy に保存しました！")
 
     ############################################### Code base Begins here ###############################################

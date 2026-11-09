@@ -184,7 +184,7 @@ def run_simulation(segments,data,simdata,memory,compare,fail_id,step,totaltime,p
            
        count += 1
 
-    print(simdata)   
+    #print(simdata)   
        
 
 
@@ -252,6 +252,10 @@ def plotter_lneth(y_Fidelity,y_time,y_tau,x_data):
   plt.grid(True, linestyle='--', alpha=0.7) # グリッド線
   plt.legend(loc='best') # 凡例
   plt.show()
+
+  data = np.column_stack((x_data, y_time))
+
+  np.save("simulation_data_twoside_strict_ion=3.npy", data)
 
   plt.figure(figsize=(10, 5))
   plt.plot(x_data,y_tau,color='blue',marker='o',linestyle = 'None',label='theta function')
@@ -345,7 +349,7 @@ def main_loop():
     #relative_path = "Desktop\研究データ\simulation_database.npy"　#忠実な値100usのモンテカルロ
     #relative_path = "Desktop\研究データ\simulation_database_prob100%.npy" #95%確認用
     #relative_path = "Desktop\研究データ\simulation_database_takahasi_compare_ver.npy"#高橋先生最大値で妥当性を確認用
-    relative_path = "C:\\Users\\joe10\\code\\simulation_database_LQUOM_1us_samecon_takahasi.npy"
+    relative_path = r"C:\Users\joe10\code\twoside_ion_strict.npy"
     full_path = os.path.join(home, relative_path)
 
     try:
@@ -358,7 +362,7 @@ def main_loop():
         return
     
     #誤差率簡易版の為のmean_timeのインポート　恐らくあんま意味ない。一応残してる
-    relative_path2 = "Desktop\研究データ\mean_time_segment2.npy"
+    relative_path2 = r"Desktop\研究データ\mean_time_segment2.npy"
     
     # パスを結合
     full_path2 = os.path.join(home, relative_path2)
@@ -449,7 +453,7 @@ def main_loop():
                     time.append(totaltime)
                     for i in range(len(simdata)):
                         Fidelity.append(simdata[i][1])
-                        print(f"you{Fidelity}")
+                        #print(f"you{Fidelity}")
                     if num_len+1 >= 2: 
                         Total_Fidelity.append(bellswaping_Hop(Fidelity))
                     else:
