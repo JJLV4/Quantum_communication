@@ -1862,7 +1862,7 @@ def main_loop():
                         
 
                     if all_complete:
-                        print("動いてる？")
+                        #print("動いてる？")
 
                         step_rouds += step
                         t_generation = (step_rouds+1) * 0.000001#＋1はDistillationを考慮している
@@ -1905,7 +1905,7 @@ def main_loop():
                         p = 1 #1になるように調整必要、とりあえず無理矢理1に！ 
 
                         if check_success(Disproba):#F_listを定義してからでないと行けない
-                            print(f"成功")
+                            #print(f"成功")
                             Fidelity_for_histgram_Hop.append(Distilation_caluculation_single_photon(mode="normal"))#Hop by Hopに限る                                  
                             break
                         
