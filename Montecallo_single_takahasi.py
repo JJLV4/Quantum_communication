@@ -212,7 +212,7 @@ class RepeaterSegment:
                 # (which means its single EL is established).
                     suc_count = 0
                     self.loadcount =0 
-                    print("ローディング施工中")
+                    #print("ローディング施工中")
                     for i in range(self.succount):
                         self.loadcount += 1
                         if check_success(params["prob_Global_Swap"]):
@@ -235,7 +235,7 @@ class RepeaterSegment:
             if not self.el_states[-1] and not self.el_states[0]:
                 #print(f"試行回数{(params["R_EPPS"])*params["t_AFC"]}") # Removed dictionary access here
                 if not self.is_complete:
-                      print("デバッグ")
+                      #print("デバッグ")
                       for i in range(self.n_els):
                           if not self.el_states[i]:
                             if method == "A":
@@ -246,11 +246,11 @@ class RepeaterSegment:
                                         if check_success(params["prob_EL_gen"]*params["eta_EPPS"]):
                                             self.succount +=1
                                             if suc_count == 0:
-                                                print("成功1")
+                                                #print("成功1")
                                                 suc_count += 1
                                                 
                                             else:
-                                                print("成功2")    
+                                                #print("成功2")    
                                                 self.el_states[i] = True
 
                                                 
@@ -303,7 +303,7 @@ class RepeaterSegment:
 
 
                       elif len(self.ec_states) == 0 :
-                          print("Let's go !!")
+                          #print("Let's go !!")
                           pass
 
                       else:
@@ -1791,10 +1791,10 @@ def main_loop():
 
               if Sndmethod_choice =="A":
                   F_listR = []
-                  print("シングル")
+                  #print("シングル")
               else:
                   F_listR =  [ [] for _ in range(num_segments)]#ラウンドとして、フィデリティーカウントの平均値を蓄える
-                  print("コンプレックス")
+                  #print("コンプレックス")
 
             #Fiderity_count = sum(seg.storage_count for seg in segments)+num_len #num_lenはELのメモリの分のカウントこれは、Nを増やす方式にしか対応していないことに注意
               Fidelity_counts_per_seg = [ [[] for _ in range(4)] for _ in range(num_segments) ]#配列を用意！！
@@ -1833,26 +1833,26 @@ def main_loop():
                     if segments[0].el_states == [False]: #EL生成   
                         all_complete,N_suc = run_simulation(segments, sim_params,method_choice,e,int(N_multi))
                         step += (int(N_multi)+100)
-                        print("EL成功")
+                        #print("EL成功")
                     elif segments[0].el_states  == [True]: #ローディング
                         all_complete,N_suc = run_simulation(segments, sim_params,method_choice,e,int(N_multi))
                         if segments[0].RP: 
-                            print("ローディング")
+                            #print("ローディング")
                             #step += N_suc*200
                             step +=  N_suc*110#LQUOMに合わせるならこっちにするべき
 
                         elif not segments[0].RP:
-                            print("EL")
+                            #print("EL")
                             step += (int(N_multi)+100)
                         
 
                         
 
-                        if all_complete:
-                            print("成功!!!")
+                        # if all_complete:
+                        #     #print("成功!!!")
 
-                        else:
-                            print("失敗!!!")  
+                        # else:
+                        #     #print("失敗!!!")  
 
 
                     else:
@@ -1914,7 +1914,7 @@ def main_loop():
                             fail[1] += 1
                             segments = [RepeaterSegment(i, sim_params["n_ELs"]) for i in range(sim_params["num_segments"]) ] #セグメントの初期化
                             step = 0
-                            print(f"失敗{fail}回目")
+                            #print(f"失敗{fail}回目")
                                 
 
                            
