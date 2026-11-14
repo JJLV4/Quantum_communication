@@ -1541,8 +1541,8 @@ def histgram(a,b,attempts):
     ax.set_title('3D Histogram of Simulation Results')
 
     plt.savefig('3d_histogram.png') # 画像として保存
-    np.save('twoside_ion_strict.npy', database_segment) 
-    print("Database saved as 'twoside_ion_strict.npy'")
+    np.save('twoside_ion_strict=4.npy', database_segment) 
+    print("Database saved as 'twoside_ion_strict=4.npy'")
     print(database_segment[0])
     print(database_segment[1])
     del database_segment
