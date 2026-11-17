@@ -1541,8 +1541,8 @@ def histgram(a,b,attempts):
     ax.set_title('3D Histogram of Simulation Results')
 
     plt.savefig('3d_histogram.png') # 画像として保存
-    np.save('twoside_ion_strict=4.npy', database_segment) 
-    print("Database saved as 'twoside_ion_strict=4.npy'")
+    np.save('twoside_ion_strict=2_distillation=0.5_approx.npy', database_segment) 
+    print("Database saved as 'twoside_ion_strict=2_distillation=0.5_approx.npy'")
     print(database_segment[0])
     print(database_segment[1])
     del database_segment
@@ -1848,6 +1848,12 @@ def main_loop():
                   delmark2 = 0
                   kimmark = 0
                   kimmark2 = 0
+                  distillation = []
+
+                  presuc = 0
+                  sucprocess = 0
+                  sucherald = []
+                  
 
                   photon_num = []
 
@@ -1887,7 +1893,43 @@ def main_loop():
                        
                         # all_complete = run_simulation(segments, sim_params,method_choice,e,memcount)
                         # step += 1
-                           
+
+                        if len(distillation) >= 1:#distillationのヘラルド待ち
+                            #print("distillationのカウント")
+                            
+                            for i in range(len(distillation)):
+                                distillation[i] += 1
+                                if distillation[i] == 100:
+                                    del distillation[i]
+                                    ion -= 2
+                                    ion2 -= 2
+                                else:
+                                    pass    
+
+                        
+
+                        if presuc == 1:
+                            #print("sucherald生成")
+                            for i in range(2):
+                                if len(red_count) >= 1:
+                                    del red_count[0]
+                                    del red_count2[0]
+
+                            sucherald.append(0)
+                            presuc = 0
+
+                        if len(sucherald) >= 1:
+                            #print("scheraldのカウント")
+
+                            for i in range(len(sucherald)):
+                                sucherald[i] += 1
+                                if sucherald[i] == 100:
+                                    del sucherald[i]
+                                    sucprocess = 1
+                                    
+                                else:
+                                    pass    
+
 
 
                         
@@ -2028,15 +2070,24 @@ def main_loop():
                                 break
                             else:
                                 suc = 0
-                                print(f"1回目完了したが、イオン数が多すぎる{suc}")
+                                #print(f"1回目完了したが、イオン数が多すぎる{suc}")
                                 break    
 
 
-                        elif all_complete and suc == 2 and ion <= max_ion:
+                        elif all_complete and suc == 2 and ion <= max_ion and presuc == 0:
+                            presuc = 1
+                            segments = [RepeaterSegment(i, sim_params["n_ELs"]) for i in range(sim_params["num_segments"]) ] 
+                            suc = 1 
+                            #print("presuc")
+                            
+
+
+                        if sucprocess == 1 and ion <= max_ion:
+
+                            sucprocess = 0
                             step_rouds += step
                             t_generation = (step_rouds+1) * 0.000001#＋1はDistillationを考慮している
                             t_latency_total =param_dict.get("t_CNOT") + param_dict.get("t_QR")
-                            print(f"step: {step}")
                             #ion_num.append(photon_num)  
                             ion_max.append(max(photon_num))
                             #step[4]+=1#debug
@@ -2055,7 +2106,7 @@ def main_loop():
                                 time_before_distillation.append(t_elapsed)#2つのベルペアが出来るまでの時間、2つ同時なのが単一光子だから、for文で回さなくて良い,4つでやるときは改良必要
 
                             else:
-                                execution_times[attempt] += t_elapsed
+                                execution_times[attempt] = t_elapsed#連続の場合はt_latencyが加算されないからここを＝にする
                                 
 
                             if method_choice == "A":
@@ -2071,11 +2122,15 @@ def main_loop():
                               
 
                               #print("debug")
-                            Disproba = Distilation_caluculation_single_photon(mode="prob")
+                            #Disproba = Distilation_caluculation_single_photon(mode="prob")
+                            Disproba = 0.5
                             p = Disproba
 
                             if check_success(Disproba):#F_listを定義してからでないと行けない
                                 #print(f"成功")
+                                print(f"step: {step}")
+                                suc = bell_num
+
                                 Fidelity_for_histgram_Hop.append(Distilation_caluculation_single_photon(mode="normal"))#Hop by Hopに限る                                  
                                 break
                             
@@ -2084,7 +2139,21 @@ def main_loop():
                                 fail[1] += 1
                                 segments = [RepeaterSegment(i, sim_params["n_ELs"]) for i in range(sim_params["num_segments"]) ] #セグメントの初期化
                                 step = 0
+                                suc = 0
+                                #ion = 0
+                                #ion2 = 0
+                                # delmark = 0
+                                # delmark2 = 0
+                                # kimmark = 0
+                                # kimmark2 = 0
+                                distillation.append(0)
+                                #photon_num = []
+
+
+                                # red_count = [] 
+                                # red_count2 = []
                                 #print(f"失敗{fail}回目")
+                                break
                                 
 
                            

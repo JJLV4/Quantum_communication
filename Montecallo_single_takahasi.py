@@ -1561,8 +1561,8 @@ def histgram(a,b,attempts):
     ax.set_title('3D Histogram of Simulation Results')
 
     plt.savefig('3d_histogram.png') # 画像として保存
-    np.save('simulation_database_takahasiver_CNOT10.npy', database_segment) 
-    print("Database saved as 'simulation_database_takahasiver_CNOT10.npy'")
+    np.save('simulation_database_takahasiver_CNOT10_disprob=50%_approx.npy', database_segment) 
+    print("Database saved as 'simulation_database_takahasiver_CNOT10_disprob=50%_approx.npy'")
     del database_segment
 
 
@@ -1864,7 +1864,7 @@ def main_loop():
                     if all_complete:
                         #print("動いてる？")
 
-                        step_rouds += step
+                        step_rouds = step#高橋先生の場合は加算されるからここを=にする
                         t_generation = (step_rouds+1) * 0.000001#＋1はDistillationを考慮している
                         t_latency_total =param_dict.get("t_CNOT") + param_dict.get("t_QR")
 
@@ -1900,7 +1900,7 @@ def main_loop():
 
                             #print("debug")
                         #Disproba = Distilation_caluculation_single_photon(mode="prob")
-                        Disproba = 1
+                        Disproba = 0.5
                         #p = Disproba
                         p = 1 #1になるように調整必要、とりあえず無理矢理1に！ 
 
