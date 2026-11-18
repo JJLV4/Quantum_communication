@@ -1913,6 +1913,8 @@ def main_loop():
                             for i in range(2):
                                 if len(red_count) >= 1:
                                     del red_count[0]
+
+                                if len(red_count2) >= 1:
                                     del red_count2[0]
 
                             sucherald.append(0)
